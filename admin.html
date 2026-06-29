@@ -14,18 +14,18 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand"><span class="logo">💼</span><div><div class="brand-name">ระบบบริหารการเงิน</div></div></div>
     <nav class="sidebar-nav">
-      <a href="index.html" class="nav-item"><span class="nav-icon">📊</span><span>แดชบอร์ด</span></a>
-      <a href="transactions.html" class="nav-item"><span class="nav-icon">💰</span><span>รายรับ-รายจ่าย</span></a>
-      <a href="reports.html" class="nav-item"><span class="nav-icon">📈</span><span>รายงาน</span></a>
-      <a href="cashflow.html" class="nav-item"><span class="nav-icon">💧</span><span>กระแสเงินสด</span></a>
-      <a href="budget.html" class="nav-item"><span class="nav-icon">🎯</span><span>งบประมาณ</span></a>
-      <a href="debts.html" class="nav-item"><span class="nav-icon">🤝</span><span>หนี้/ลูกหนี้</span></a>
-      <a href="assets.html" class="nav-item"><span class="nav-icon">🏭</span><span>ทรัพย์สิน</span></a>
-      <a href="admin.html" class="nav-item active"><span class="nav-icon">⚙️</span><span>ผู้ดูแลระบบ</span></a>
+      <a href="index.html" class="nav-item"><span class="nav-icon">📊</span><span data-i18n="dashboard">แดชบอร์ด</span></a>
+      <a href="transactions.html" class="nav-item"><span class="nav-icon">💰</span><span data-i18n="transactions">รายรับ-รายจ่าย</span></a>
+      <a href="reports.html" class="nav-item"><span class="nav-icon">📈</span><span data-i18n="reports">รายงาน</span></a>
+      <a href="cashflow.html" class="nav-item"><span class="nav-icon">💧</span><span data-i18n="cashflow">กระแสเงินสด</span></a>
+      <a href="budget.html" class="nav-item"><span class="nav-icon">🎯</span><span data-i18n="budget">งบประมาณ</span></a>
+      <a href="debts.html" class="nav-item"><span class="nav-icon">🤝</span><span data-i18n="debts">หนี้/ลูกหนี้</span></a>
+      <a href="assets.html" class="nav-item"><span class="nav-icon">🏭</span><span data-i18n="assets">ทรัพย์สิน</span></a>
+      <a href="admin.html" class="nav-item active"><span class="nav-icon">⚙️</span><span data-i18n="admin">ผู้ดูแลระบบ</span></a>
     </nav>
     <div class="sidebar-footer">
       <div class="user-info"><div class="user-avatar" id="userAvatar">U</div><div><div class="user-name" id="userName">—</div><div class="user-role" id="userRole">—</div></div></div>
-      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">🚪 ออกจากระบบ</button>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">🚪 <span data-i18n="logout">ออกจากระบบ</span></button>
     </div>
   </aside>
 
@@ -314,6 +314,7 @@
     document.getElementById('userAvatar').textContent = (p.full_name || 'U').charAt(0).toUpperCase();
     document.getElementById('userName').textContent = p.full_name || p.email;
     document.getElementById('userRole').textContent = 'ผู้ดูแล';
+    applyLang();
     if (window.innerWidth <= 768) document.querySelector('.menu-toggle').style.display = 'flex';
   }
 

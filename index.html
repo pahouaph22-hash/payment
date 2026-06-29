@@ -85,32 +85,32 @@ body.dark-mode .goal-meta{color:#fcd34d;}
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand"><span class="logo">&#x1F4BC;</span><div><div class="brand-name">ระบบบริหารการเงิน</div></div></div>
     <nav class="sidebar-nav">
-      <div class="nav-label">หลัก</div>
-      <a href="index.html" class="nav-item active"><span class="nav-icon">&#x1F4CA;</span><span>แดชบอร์ด</span></a>
-      <a href="transactions.html" class="nav-item"><span class="nav-icon">&#x1F4B0;</span><span>รายรับ-รายจ่าย</span></a>
-      <div class="nav-label">วิเคราะห์</div>
-      <a href="reports.html" class="nav-item"><span class="nav-icon">&#x1F4C8;</span><span>รายงาน</span></a>
-      <a href="cashflow.html" class="nav-item"><span class="nav-icon">&#x1F4A7;</span><span>กระแสเงินสด</span></a>
-      <a href="budget.html" class="nav-item"><span class="nav-icon">&#x1F3AF;</span><span>งบประมาณ</span></a>
-      <div class="nav-label">จัดการ</div>
-      <a href="debts.html" class="nav-item"><span class="nav-icon">&#x1F91D;</span><span>หนี้/ลูกหนี้</span></a>
-      <a href="assets.html" class="nav-item"><span class="nav-icon">&#x1F3ED;</span><span>ทรัพย์สิน</span></a>
-      <div class="nav-label admin-only">ผู้ดูแล</div>
-      <a href="admin.html" class="nav-item admin-only"><span class="nav-icon">&#x2699;&#xFE0F;</span><span>ผู้ดูแลระบบ</span></a>
+      <div class="nav-label" data-i18n="main">หลัก</div>
+      <a href="index.html" class="nav-item active"><span class="nav-icon">&#x1F4CA;</span><span data-i18n="dashboard">แดชบอร์ด</span></a>
+      <a href="transactions.html" class="nav-item"><span class="nav-icon">&#x1F4B0;</span><span data-i18n="transactions">รายรับ-รายจ่าย</span></a>
+      <div class="nav-label" data-i18n="analysis">วิเคราะห์</div>
+      <a href="reports.html" class="nav-item"><span class="nav-icon">&#x1F4C8;</span><span data-i18n="reports">รายงาน</span></a>
+      <a href="cashflow.html" class="nav-item"><span class="nav-icon">&#x1F4A7;</span><span data-i18n="cashflow">กระแสเงินสด</span></a>
+      <a href="budget.html" class="nav-item"><span class="nav-icon">&#x1F3AF;</span><span data-i18n="budget">งบประมาณ</span></a>
+      <div class="nav-label" data-i18n="manage">จัดการ</div>
+      <a href="debts.html" class="nav-item"><span class="nav-icon">&#x1F91D;</span><span data-i18n="debts">หนี้/ลูกหนี้</span></a>
+      <a href="assets.html" class="nav-item"><span class="nav-icon">&#x1F3ED;</span><span data-i18n="assets">ทรัพย์สิน</span></a>
+      <div class="nav-label admin-only" data-i18n="adminLabel">ผู้ดูแล</div>
+      <a href="admin.html" class="nav-item admin-only"><span class="nav-icon">&#x2699;&#xFE0F;</span><span data-i18n="admin">ผู้ดูแลระบบ</span></a>
     </nav>
     <div class="sidebar-footer">
       <div class="user-info">
         <div class="user-avatar" id="userAvatar">U</div>
         <div><div class="user-name" id="userName">&#x2014;</div><div class="user-role" id="userRole">&#x2014;</div></div>
       </div>
-      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">&#x1F6AA; ออกจากระบบ</button>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()"><span data-i18n="logout">ออกจากระบบ</span></button>
     </div>
   </aside>
 
   <div class="main-content">
     <header class="top-header">
       <button class="menu-toggle" onclick="toggleSidebar()" style="display:none;">&#x2630;</button>
-      <h1 class="page-title">แดชบอร์ด</h1>
+      <h1 class="page-title" data-i18n="dashboard">แดชบอร์ด</h1>
       <div class="header-actions">
         <div class="lang-switcher">
           <button class="lang-btn active" id="langBtnTh" onclick="switchLang('th')">ไทย</button>
@@ -118,7 +118,7 @@ body.dark-mode .goal-meta{color:#fcd34d;}
           <button class="lang-btn" id="langBtnEn" onclick="switchLang('en')">EN</button>
         </div>
         <button class="btn btn-outline btn-sm" onclick="toggleDark()" id="darkBtn" title="Dark Mode">&#x1F319;</button>
-        <button class="btn btn-primary btn-sm" onclick="openQuickModal()">&#x2795; เพิ่มรายการ</button>
+        <button class="btn btn-primary btn-sm" onclick="openQuickModal()"><span data-i18n="addTransaction">เพิ่มรายการ</span></button>
       </div>
     </header>
 
@@ -126,39 +126,39 @@ body.dark-mode .goal-meta{color:#fcd34d;}
 
       <div class="today-widget">
         <div class="today-card green">
-          <div class="tc-label">&#x1F49A; รายรับวันนี้</div>
+          <div class="tc-label" data-i18n="todayIncome">รายรับวันนี้</div>
           <div class="tc-value" id="todayIncome">&#x0E3F;0</div>
           <div class="tc-sub" id="todayIncomeCount">0 รายการ</div>
         </div>
         <div class="today-card red">
-          <div class="tc-label">&#x2764;&#xFE0F; รายจ่ายวันนี้</div>
+          <div class="tc-label" data-i18n="todayExpense">รายจ่ายวันนี้</div>
           <div class="tc-value" id="todayExpense">&#x0E3F;0</div>
           <div class="tc-sub" id="todayExpenseCount">0 รายการ</div>
         </div>
         <div class="today-card">
-          <div class="tc-label">&#x1F49C; คงเหลือเดือนนี้</div>
+          <div class="tc-label" data-i18n="monthBalance">คงเหลือเดือนนี้</div>
           <div class="tc-value" id="monthBalance">&#x0E3F;0</div>
           <div class="tc-sub" id="monthBalanceSub">รายรับ - รายจ่าย</div>
         </div>
       </div>
 
       <div class="quick-add-bar">
-        <div class="quick-add-title">&#x26A1; บันทึกด่วน (รายการโปรด)</div>
+        <div class="quick-add-title" data-i18n="quickAdd">บันทึกด่วน (รายการโปรด)</div>
         <div class="quick-btns" id="quickBtns"><div class="loading-spinner" style="width:20px;height:20px;margin:0;"></div></div>
       </div>
 
       <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-icon income">&#x1F49A;</div><div class="kpi-body"><div class="kpi-label">รายรับ (ช่วงที่เลือก)</div><div class="kpi-value income" id="kpiIncome">&#x0E3F;0</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon expense">&#x2764;&#xFE0F;</div><div class="kpi-body"><div class="kpi-label">รายจ่าย (ช่วงที่เลือก)</div><div class="kpi-value expense" id="kpiExpense">&#x0E3F;0</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon profit">&#x1F49C;</div><div class="kpi-body"><div class="kpi-label">กำไรสุทธิ</div><div class="kpi-value profit" id="kpiProfit">&#x0E3F;0</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon balance">&#x1F49B;</div><div class="kpi-body"><div class="kpi-label">ยอดคงเหลือรวม</div><div class="kpi-value balance" id="kpiBalance">&#x0E3F;0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon income">&#x1F49A;</div><div class="kpi-body"><div class="kpi-label" data-i18n="totalIncome">รายรับ (ช่วงที่เลือก)</div><div class="kpi-value income" id="kpiIncome">&#x0E3F;0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon expense">&#x2764;&#xFE0F;</div><div class="kpi-body"><div class="kpi-label" data-i18n="totalExpense">รายจ่าย (ช่วงที่เลือก)</div><div class="kpi-value expense" id="kpiExpense">&#x0E3F;0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon profit">&#x1F49C;</div><div class="kpi-body"><div class="kpi-label" data-i18n="netProfit">กำไรสุทธิ</div><div class="kpi-value profit" id="kpiProfit">&#x0E3F;0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon balance">&#x1F49B;</div><div class="kpi-body"><div class="kpi-label" data-i18n="balance">ยอดคงเหลือรวม</div><div class="kpi-value balance" id="kpiBalance">&#x0E3F;0</div></div></div>
       </div>
 
       <div class="filter-bar" style="margin-bottom:20px;">
         <select class="form-control" id="periodFilter" onchange="onPeriodChange()" style="max-width:160px;">
-          <option value="month">เดือนนี้</option>
-          <option value="year">ปีนี้</option>
-          <option value="custom">กำหนดเอง</option>
+          <option value="month" data-i18n="thisMonth">เดือนนี้</option>
+          <option value="year" data-i18n="thisYear">ปีนี้</option>
+          <option value="custom" data-i18n="custom">กำหนดเอง</option>
         </select>
         <div id="customDateRange" style="display:none;gap:8px;">
           <input type="date" class="form-control" id="dateFrom" style="max-width:150px;">
@@ -169,22 +169,22 @@ body.dark-mode .goal-meta{color:#fcd34d;}
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
         <div class="card">
-          <div class="card-header"><span class="card-title">รายรับ vs รายจ่าย (6 เดือน)</span></div>
+          <div class="card-header"><span class="card-title" data-i18n="incomeVsExpense">รายรับ vs รายจ่าย (6 เดือน)</span></div>
           <canvas id="barChart" height="180"></canvas>
         </div>
         <div class="card">
-          <div class="card-header"><span class="card-title">&#x1F4C5; รายจ่ายรายวัน (เดือนนี้)</span></div>
+          <div class="card-header"><span class="card-title" data-i18n="dailyExpense">รายจ่ายรายวัน (เดือนนี้)</span></div>
           <div class="daily-chart-wrap"><canvas id="dailyChart"></canvas></div>
         </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
         <div class="card">
-          <div class="card-header"><span class="card-title">รายจ่ายตามหมวดหมู่</span></div>
+          <div class="card-header"><span class="card-title" data-i18n="expenseByCategory">รายจ่ายตามหมวดหมู่</span></div>
           <canvas id="pieChart" height="200"></canvas>
         </div>
         <div class="card">
-          <div class="card-header"><span class="card-title">&#x1F4CA; เปรียบเทียบเดือนต่อเดือน</span></div>
+          <div class="card-header"><span class="card-title" data-i18n="monthCompare">เปรียบเทียบเดือนต่อเดือน</span></div>
           <div id="monthCompare" style="padding:4px 0;"><div style="text-align:center;padding:20px;color:#94a3b8;">กำลังโหลด...</div></div>
         </div>
       </div>
@@ -192,20 +192,20 @@ body.dark-mode .goal-meta{color:#fcd34d;}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
         <div class="card">
           <div class="card-header">
-            <span class="card-title">รายการล่าสุด</span>
-            <a href="transactions.html" class="btn btn-outline btn-sm">ดูทั้งหมด &#x2192;</a>
+            <span class="card-title" data-i18n="recentTx">รายการล่าสุด</span>
+            <a href="transactions.html" class="btn btn-outline btn-sm" data-i18n="viewAll">ดูทั้งหมด →</a>
           </div>
           <div class="table-wrapper">
             <table class="table">
-              <thead><tr><th>วันที่</th><th>รายการ</th><th class="text-right">จำนวน</th></tr></thead>
+              <thead><tr><th data-i18n="date">วันที่</th><th data-i18n="description">รายการ</th><th class="text-right" data-i18n="amount">จำนวน</th></tr></thead>
               <tbody id="recentTxBody"><tr><td colspan="3" style="text-align:center;padding:20px;color:#94a3b8;">กำลังโหลด...</td></tr></tbody>
             </table>
           </div>
         </div>
         <div class="card">
           <div class="card-header">
-            <span class="card-title">&#x1F3AF; เป้าหมายการออม</span>
-            <button class="btn btn-outline btn-sm" onclick="openGoalModal()">+ เพิ่ม</button>
+            <span class="card-title" data-i18n="savingsGoal">เป้าหมายการออม</span>
+            <button class="btn btn-outline btn-sm" onclick="openGoalModal()" data-i18n="addGoal">+ เพิ่ม</button>
           </div>
           <div id="savingsGoalList"><div style="text-align:center;padding:20px;color:#94a3b8;">กำลังโหลด...</div></div>
         </div>
@@ -214,15 +214,15 @@ body.dark-mode .goal-meta{color:#fcd34d;}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
         <div class="card">
           <div class="card-header">
-            <span class="card-title">สถานะงบประมาณ</span>
-            <a href="budget.html" class="btn btn-outline btn-sm">จัดการ &#x2192;</a>
+            <span class="card-title" data-i18n="budgetStatus">สถานะงบประมาณ</span>
+            <a href="budget.html" class="btn btn-outline btn-sm" data-i18n="manage">จัดการ →</a>
           </div>
           <div id="budgetStatusList"><div style="text-align:center;padding:20px;color:#94a3b8;">กำลังโหลด...</div></div>
         </div>
         <div class="card">
           <div class="card-header">
-            <span class="card-title">&#x26A0;&#xFE0F; หนี้ใกล้ครบกำหนด</span>
-            <a href="debts.html" class="btn btn-outline btn-sm">จัดการ &#x2192;</a>
+            <span class="card-title" data-i18n="upcomingDebts">หนี้ใกล้ครบกำหนด</span>
+            <a href="debts.html" class="btn btn-outline btn-sm" data-i18n="manage">จัดการ →</a>
           </div>
           <div id="debtAlertList"><div style="text-align:center;padding:20px;color:#94a3b8;">กำลังโหลด...</div></div>
         </div>
@@ -236,7 +236,7 @@ body.dark-mode .goal-meta{color:#fcd34d;}
 <div class="modal-overlay" id="quickModal">
   <div class="modal">
     <div class="modal-header">
-      <h3 class="modal-title">&#x2795; บันทึกรายการ</h3>
+      <h3 class="modal-title" data-i18n="addTransaction">บันทึกรายการ</h3>
       <button class="modal-close" onclick="closeModal('quickModal')">&#x2715;</button>
     </div>
     <div class="modal-body">
@@ -366,6 +366,7 @@ body.dark-mode .goal-meta{color:#fcd34d;}
     if(localStorage.getItem('finance_dark')=='1'){document.body.classList.add('dark-mode');document.getElementById('darkBtn').textContent='\u2600\uFE0F';}
     updateSidebarUI();
     await loadCategories();
+    applyLang();
     renderQuickBtns();
     renderSavingsGoals();
     loadTodayWidget();
@@ -393,7 +394,36 @@ body.dark-mode .goal-meta{color:#fcd34d;}
     APP.setLang(lang);
     if(APP.profile)supabase.from('profiles').update({language:lang}).eq('id',APP.profile.id);
     ['th','lo','en'].forEach(function(l){document.getElementById('langBtn'+l.charAt(0).toUpperCase()+l.slice(1)).classList.toggle('active',l===lang);});
+    applyLang();
+    // Reload dashboard data with new language
+    loadDashboard();
+    loadTodayWidget();
+    loadMonthCompare();
   };
+
+  function applyLang(){
+    var lang=APP.lang;
+    // Update all elements with data-i18n attribute
+    document.querySelectorAll('[data-i18n]').forEach(function(el){
+      var key=el.getAttribute('data-i18n');
+      var val=APP.t(key);
+      if(val&&val!==key){
+        // For option elements update text
+        if(el.tagName==='OPTION'){el.textContent=val;}
+        // For input placeholders
+        else if(el.hasAttribute('placeholder')){el.placeholder=val;}
+        else{el.textContent=val;}
+      }
+    });
+    // Update lang buttons
+    document.querySelectorAll('.lang-btn').forEach(function(b){b.classList.remove('active');});
+    var btnMap={th:'langBtnTh',lo:'langBtnLo',en:'langBtnEn'};
+    if(btnMap[lang])document.getElementById(btnMap[lang]).classList.add('active');
+    // Update html lang attr
+    document.documentElement.lang=lang;
+    // Update page title
+    document.title=APP.t('appName');
+  }
 
   async function loadCategories(){
     var r=await supabase.from('categories').select('*').order('name_th');

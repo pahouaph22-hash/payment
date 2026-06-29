@@ -22,21 +22,21 @@
       <div><div class="brand-name">ระบบบริหารการเงิน</div></div>
     </div>
     <nav class="sidebar-nav">
-      <a href="index.html" class="nav-item"><span class="nav-icon">📊</span><span>แดชบอร์ด</span></a>
-      <a href="transactions.html" class="nav-item active"><span class="nav-icon">💰</span><span>รายรับ-รายจ่าย</span></a>
-      <a href="reports.html" class="nav-item"><span class="nav-icon">📈</span><span>รายงาน</span></a>
-      <a href="cashflow.html" class="nav-item"><span class="nav-icon">💧</span><span>กระแสเงินสด</span></a>
-      <a href="budget.html" class="nav-item"><span class="nav-icon">🎯</span><span>งบประมาณ</span></a>
-      <a href="debts.html" class="nav-item"><span class="nav-icon">🤝</span><span>หนี้/ลูกหนี้</span></a>
-      <a href="assets.html" class="nav-item"><span class="nav-icon">🏭</span><span>ทรัพย์สิน</span></a>
-      <a href="admin.html" class="nav-item admin-only"><span class="nav-icon">⚙️</span><span>ผู้ดูแลระบบ</span></a>
+      <a href="index.html" class="nav-item"><span class="nav-icon">📊</span><span data-i18n="dashboard">แดชบอร์ด</span></a>
+      <a href="transactions.html" class="nav-item active"><span class="nav-icon">💰</span><span data-i18n="transactions">รายรับ-รายจ่าย</span></a>
+      <a href="reports.html" class="nav-item"><span class="nav-icon">📈</span><span data-i18n="reports">รายงาน</span></a>
+      <a href="cashflow.html" class="nav-item"><span class="nav-icon">💧</span><span data-i18n="cashflow">กระแสเงินสด</span></a>
+      <a href="budget.html" class="nav-item"><span class="nav-icon">🎯</span><span data-i18n="budget">งบประมาณ</span></a>
+      <a href="debts.html" class="nav-item"><span class="nav-icon">🤝</span><span data-i18n="debts">หนี้/ลูกหนี้</span></a>
+      <a href="assets.html" class="nav-item"><span class="nav-icon">🏭</span><span data-i18n="assets">ทรัพย์สิน</span></a>
+      <a href="admin.html" class="nav-item admin-only"><span class="nav-icon">⚙️</span><span data-i18n="admin">ผู้ดูแลระบบ</span></a>
     </nav>
     <div class="sidebar-footer">
       <div class="user-info">
         <div class="user-avatar" id="userAvatar">U</div>
         <div><div class="user-name" id="userName">—</div><div class="user-role" id="userRole">—</div></div>
       </div>
-      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">🚪 ออกจากระบบ</button>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">🚪 <span data-i18n="logout">ออกจากระบบ</span></button>
     </div>
   </aside>
 
@@ -270,6 +270,7 @@
       var addBtn = document.querySelector('.filter-bar .btn-primary');
       if (addBtn) addBtn.style.display = 'none';
     }
+    applyLang();
     if (window.innerWidth <= 768) document.querySelector('.menu-toggle').style.display = 'flex';
   }
 
@@ -564,9 +565,29 @@
     APP.setLang(lang);
     if (APP.profile) supabase.from('profiles').update({ language: lang }).eq('id', APP.profile.id);
     ['th','lo','en'].forEach(function(l) {
-      document.getElementById('langBtn' + l.charAt(0).toUpperCase() + l.slice(1)).classList.toggle('active', l === lang);
+      var btn = document.getElementById('langBtn' + l.charAt(0).toUpperCase() + l.slice(1));
+      if (btn) btn.classList.toggle('active', l === lang);
     });
+    applyLang();
   };
+
+  function applyLang() {
+    document.querySelectorAll('[data-i18n]').forEach(function(el) {
+      var key = el.getAttribute('data-i18n');
+      var val = APP.t(key);
+      if (val && val !== key) {
+        if (el.tagName === 'OPTION') el.textContent = val;
+        else el.textContent = val;
+      }
+    });
+    document.querySelectorAll('.lang-btn').forEach(function(b) { b.classList.remove('active'); });
+    var btnMap = {th:'langBtnTh', lo:'langBtnLo', en:'langBtnEn'};
+    if (btnMap[APP.lang]) {
+      var b = document.getElementById(btnMap[APP.lang]);
+      if (b) b.classList.add('active');
+    }
+    document.documentElement.lang = APP.lang;
+  }
 
   window.toggleSidebar = function() {
     document.getElementById('sidebar').classList.toggle('open');
