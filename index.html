@@ -44,6 +44,8 @@ body.dark-mode .form-control{background:#334155;border-color:#475569;color:#e2e8
 body.dark-mode .table td,body.dark-mode .table th{border-color:#334155;}
 body.dark-mode .table tbody tr:hover{background:#334155;}
 body.dark-mode .quick-btn{background:#334155;border-color:#475569;color:#cbd5e1;}
+body.dark-mode #catDropdown{background:#1e293b;border-color:#475569;}
+body.dark-mode #catDropdown div:hover{background:#334155 !important;}
 body.dark-mode .goal-card{background:linear-gradient(135deg,#451a03,#78350f);}
 body.dark-mode .goal-meta{color:#fcd34d;}
 </style>
@@ -253,9 +255,16 @@ body.dark-mode .goal-meta{color:#fcd34d;}
           <input type="date" class="form-control" id="qDate">
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">หมวดหมู่</label>
-        <select class="form-control" id="qCategory"><option value="">&#x2014; เลือกหมวดหมู่ &#x2014;</option></select>
+      <div class="form-group" style="position:relative;">
+        <label class="form-label">หมวดหมู่ <span style="font-size:11px;color:#94a3b8;">(เลือกหรือพิมพ์เพิ่มใหม่)</span></label>
+        <input type="text" class="form-control" id="qCategoryInput" placeholder="ค้นหาหรือพิมพ์หมวดหมู่ใหม่..." autocomplete="off" oninput="filterCatDropdown()" onfocus="showCatDropdown()" onblur="hideCatDropdown()">
+        <input type="hidden" id="qCategory" value="">
+        <div id="catDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);max-height:200px;overflow-y:auto;z-index:999;">
+          <div id="catDropdownList"></div>
+          <div id="catAddNew" style="display:none;padding:10px 12px;font-size:13px;color:var(--primary);cursor:pointer;border-top:1px solid var(--gray-100);font-weight:500;" onmousedown="addNewCategory()">
+            ➕ เพิ่มหมวดหมู่ใหม่: "<span id="catNewName"></span>"
+          </div>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">รายละเอียด</label>
@@ -389,10 +398,75 @@ body.dark-mode .goal-meta{color:#fcd34d;}
   async function loadCategories(){
     var r=await supabase.from('categories').select('*').order('name_th');
     categories=r.data||[];
-    var opts='<option value="">&#x2014; เลือกหมวดหมู่ &#x2014;</option>';
-    categories.forEach(function(c){opts+='<option value="'+c.id+'">'+c.icon+' '+c.name_th+'</option>';});
-    document.getElementById('qCategory').innerHTML=opts;
+    renderCatDropdownList('');
   }
+
+  function renderCatDropdownList(search){
+    var list=document.getElementById('catDropdownList');
+    var addNew=document.getElementById('catAddNew');
+    var filtered=categories.filter(function(c){
+      var name=(APP.lang==='lo'?(c.name_lo||c.name_th):APP.lang==='en'?(c.name_en||c.name_th):c.name_th);
+      return !search||name.toLowerCase().includes(search.toLowerCase());
+    });
+    list.innerHTML=filtered.map(function(c){
+      var name=(APP.lang==='lo'?(c.name_lo||c.name_th):APP.lang==='en'?(c.name_en||c.name_th):c.name_th);
+      return '<div style="padding:9px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;" '+
+        'onmousedown="selectCategory(\''+c.id+'\',\''+c.icon+' '+name+'\')"'+
+        ' onmouseover="this.style.background='+"'"+'#f8fafc'+"'"+'" onmouseout="this.style.background='+"'"+''+"'"+'">'+
+        c.icon+' '+name+'</div>';
+    }).join('');
+    // Show "add new" option if typed something not in list
+    var exactMatch=filtered.some(function(c){
+      var name=(APP.lang==='lo'?(c.name_lo||c.name_th):APP.lang==='en'?(c.name_en||c.name_th):c.name_th);
+      return name.toLowerCase()===search.toLowerCase();
+    });
+    if(search&&!exactMatch){
+      document.getElementById('catNewName').textContent=search;
+      addNew.style.display='block';
+    } else {
+      addNew.style.display='none';
+    }
+  }
+
+  window.filterCatDropdown=function(){
+    var val=document.getElementById('qCategoryInput').value;
+    document.getElementById('qCategory').value=''; // clear selection
+    renderCatDropdownList(val);
+    showCatDropdown();
+  };
+
+  window.showCatDropdown=function(){
+    renderCatDropdownList(document.getElementById('qCategoryInput').value||''  );
+    document.getElementById('catDropdown').style.display='block';
+  };
+
+  var _hideCatTimer=null;
+  window.hideCatDropdown=function(){
+    _hideCatTimer=setTimeout(function(){document.getElementById('catDropdown').style.display='none';},200);
+  };
+
+  window.selectCategory=function(id,name){
+    document.getElementById('qCategory').value=id;
+    document.getElementById('qCategoryInput').value=name;
+    document.getElementById('catDropdown').style.display='none';
+    if(_hideCatTimer)clearTimeout(_hideCatTimer);
+  };
+
+  window.addNewCategory=async function(){
+    var name=document.getElementById('qCategoryInput').value.trim();
+    if(!name)return;
+    // Determine type from current selection
+    var type=document.getElementById('qType').value==='income'?'income':'expense';
+    var r=await supabase.from('categories').insert([{
+      name_th:name,name_lo:name,name_en:name,
+      type:type,icon:'📋',color:'#6366f1',
+      created_by:APP.user.id
+    }]).select().single();
+    if(r.error){showToast('เกิดข้อผิดพลาด','error');return;}
+    categories.push(r.data);
+    selectCategory(r.data.id,'📋 '+name);
+    showToast('เพิ่มหมวดหมู่ "'+name+'" สำเร็จ ✅');
+  };
 
   async function loadTodayWidget(){
     var today=todayISO();
@@ -435,12 +509,15 @@ body.dark-mode .goal-meta{color:#fcd34d;}
     document.getElementById('qDate').value=todayISO();
     document.getElementById('qDesc').value='';
     document.getElementById('qCategory').value='';
+    document.getElementById('qCategoryInput').value='';
+    document.getElementById('catDropdown').style.display='none';
     document.getElementById('qPayment').value='cash';
     document.getElementById('qSaveQuick').checked=false;
     document.getElementById('qQuickNameWrap').style.display='none';
     document.getElementById('qQuickName').value='';
     setQType('expense');
     openModal('quickModal');
+    setTimeout(function(){document.getElementById('qAmount').focus();},150);
   };
 
   document.getElementById('qSaveQuick').addEventListener('change',function(){document.getElementById('qQuickNameWrap').style.display=this.checked?'block':'none';});
