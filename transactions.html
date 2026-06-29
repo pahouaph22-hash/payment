@@ -92,15 +92,15 @@
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;">
         <div class="card" style="padding:16px;text-align:center;">
           <div style="font-size:12px;color:#64748b;margin-bottom:4px;">รายรับ</div>
-          <div class="text-income" style="font-size:20px;font-weight:700;" id="sumIncome">฿0</div>
+          <div class="text-income" style="font-size:20px;font-weight:700;" id="sumIncome">₭0</div>
         </div>
         <div class="card" style="padding:16px;text-align:center;">
           <div style="font-size:12px;color:#64748b;margin-bottom:4px;">รายจ่าย</div>
-          <div class="text-expense" style="font-size:20px;font-weight:700;" id="sumExpense">฿0</div>
+          <div class="text-expense" style="font-size:20px;font-weight:700;" id="sumExpense">₭0</div>
         </div>
         <div class="card" style="padding:16px;text-align:center;">
           <div style="font-size:12px;color:#64748b;margin-bottom:4px;">กำไร/ขาดทุน</div>
-          <div style="font-size:20px;font-weight:700;" id="sumProfit">฿0</div>
+          <div style="font-size:20px;font-weight:700;" id="sumProfit">₭0</div>
         </div>
       </div>
 
@@ -369,10 +369,10 @@
     });
 
     var profit = totalIncome - totalExpense;
-    document.getElementById('sumIncome').textContent = '฿' + formatMoney(totalIncome);
-    document.getElementById('sumExpense').textContent = '฿' + formatMoney(totalExpense);
+    document.getElementById('sumIncome').textContent = '₭' + formatMoney(totalIncome);
+    document.getElementById('sumExpense').textContent = '₭' + formatMoney(totalExpense);
     var profitEl = document.getElementById('sumProfit');
-    profitEl.textContent = (profit >= 0 ? '' : '-') + '฿' + formatMoney(Math.abs(profit));
+    profitEl.textContent = (profit >= 0 ? '' : '-') + '₭' + formatMoney(Math.abs(profit));
     profitEl.className = profit >= 0 ? 'text-income' : 'text-expense';
     profitEl.style.fontSize = '20px';
     profitEl.style.fontWeight = '700';
@@ -400,7 +400,7 @@
           '<td>' + (t.description || '—') + (t.reference_no ? '<br><small style="color:#94a3b8;">' + t.reference_no + '</small>' : '') + '</td>' +
           '<td>' + (payMap[t.payment_method] || t.payment_method || '—') + '</td>' +
           '<td class="text-right ' + (isIncome ? 'text-income' : 'text-expense') + '" style="font-weight:600;">' +
-            (isIncome ? '+' : '-') + '฿' + formatMoney(t.amount) +
+            (isIncome ? '+' : '-') + '₭' + formatMoney(t.amount) +
           '</td>' +
           '<td>' + (statusMap[t.status] || t.status) + '</td>' +
           '<td>' + (canEditRow ?

@@ -75,8 +75,8 @@ var TRANSLATIONS = {
     manager_role: 'ผู้จัดการ',
     accountant_role: 'นักบัญชี',
     viewer_role: 'ผู้ดูเท่านั้น',
-    currency: 'บาท',
-    baht: '฿',
+    currency: 'ກີບ',
+    baht: '₭',
   },
   lo: {
     appName: 'ລະບົບບໍລິຫານການເງິນ',
@@ -207,8 +207,8 @@ var TRANSLATIONS = {
     manager_role: 'Manager',
     accountant_role: 'Accountant',
     viewer_role: 'Viewer',
-    currency: 'THB',
-    baht: '฿',
+    currency: 'LAK',
+    baht: '₭',
   }
 };
 
@@ -259,7 +259,7 @@ async function logout() {
 function formatMoney(amount, decimals) {
   if (decimals === undefined) decimals = 2;
   if (!amount && amount !== 0) return '-';
-  return Number(amount).toLocaleString('th-TH', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return Number(amount).toLocaleString('lo-LA', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
 function formatDate(dateStr) {

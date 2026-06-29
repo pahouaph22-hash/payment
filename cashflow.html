@@ -45,10 +45,10 @@
 
       <!-- KPI -->
       <div class="kpi-grid" style="margin-bottom:20px;">
-        <div class="kpi-card"><div class="kpi-icon income">💚</div><div class="kpi-body"><div class="kpi-label">รายรับจริง (เดือนนี้)</div><div class="kpi-value income" id="cfActualIncome">฿0</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon expense">❤️</div><div class="kpi-body"><div class="kpi-label">รายจ่ายจริง (เดือนนี้)</div><div class="kpi-value expense" id="cfActualExpense">฿0</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon profit">💜</div><div class="kpi-body"><div class="kpi-label">แผนรายรับ (เดือนนี้)</div><div class="kpi-value profit" id="cfPlanIncome">฿0</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon balance">💛</div><div class="kpi-body"><div class="kpi-label">กระแสเงินสดสุทธิ</div><div class="kpi-value balance" id="cfNet">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon income">💚</div><div class="kpi-body"><div class="kpi-label">รายรับจริง (เดือนนี้)</div><div class="kpi-value income" id="cfActualIncome">₭0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon expense">❤️</div><div class="kpi-body"><div class="kpi-label">รายจ่ายจริง (เดือนนี้)</div><div class="kpi-value expense" id="cfActualExpense">₭0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon profit">💜</div><div class="kpi-body"><div class="kpi-label">แผนรายรับ (เดือนนี้)</div><div class="kpi-value profit" id="cfPlanIncome">₭0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon balance">💛</div><div class="kpi-body"><div class="kpi-label">กระแสเงินสดสุทธิ</div><div class="kpi-value balance" id="cfNet">₭0</div></div></div>
       </div>
 
       <!-- Chart: Projected vs Actual -->
@@ -285,11 +285,11 @@
 
     // KPIs
     var thisMonthIdx = labels.length - 1;
-    document.getElementById('cfActualIncome').textContent = '฿' + formatMoney(actualInc[thisMonthIdx] || 0);
-    document.getElementById('cfActualExpense').textContent = '฿' + formatMoney(actualExp[thisMonthIdx] || 0);
-    document.getElementById('cfPlanIncome').textContent = '฿' + formatMoney(planInc[thisMonthIdx] || 0);
+    document.getElementById('cfActualIncome').textContent = '₭' + formatMoney(actualInc[thisMonthIdx] || 0);
+    document.getElementById('cfActualExpense').textContent = '₭' + formatMoney(actualExp[thisMonthIdx] || 0);
+    document.getElementById('cfPlanIncome').textContent = '₭' + formatMoney(planInc[thisMonthIdx] || 0);
     var net = (actualInc[thisMonthIdx] || 0) - (actualExp[thisMonthIdx] || 0);
-    document.getElementById('cfNet').textContent = (net >= 0 ? '' : '-') + '฿' + formatMoney(Math.abs(net));
+    document.getElementById('cfNet').textContent = (net >= 0 ? '' : '-') + '₭' + formatMoney(Math.abs(net));
     document.getElementById('cfNet').className = 'kpi-value ' + (net >= 0 ? 'balance' : 'expense');
 
     if (cfChartInst) cfChartInst.destroy();
@@ -307,7 +307,7 @@
       options: {
         responsive: true,
         plugins: { legend: { position: 'bottom' } },
-        scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '฿' + formatMoney(v,0); } } } }
+        scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '₭' + formatMoney(v,0); } } } }
       }
     });
 
@@ -349,9 +349,9 @@
         '<td style="white-space:nowrap;">' + formatDate(t.date) + '</td>' +
         '<td>' + (isInc ? '<span class="badge badge-success">รายรับ</span>' : '<span class="badge badge-danger">รายจ่าย</span>') + '</td>' +
         '<td>' + (t.description || catName || '—') + '</td>' +
-        '<td class="text-right text-income">' + (isInc ? '฿' + formatMoney(t.amount) : '—') + '</td>' +
-        '<td class="text-right text-expense">' + (!isInc ? '฿' + formatMoney(t.amount) : '—') + '</td>' +
-        '<td class="text-right" style="font-weight:600;color:' + (balance >= 0 ? '#10b981' : '#ef4444') + ';">฿' + formatMoney(balance) + '</td>' +
+        '<td class="text-right text-income">' + (isInc ? '₭' + formatMoney(t.amount) : '—') + '</td>' +
+        '<td class="text-right text-expense">' + (!isInc ? '₭' + formatMoney(t.amount) : '—') + '</td>' +
+        '<td class="text-right" style="font-weight:600;color:' + (balance >= 0 ? '#10b981' : '#ef4444') + ';">₭' + formatMoney(balance) + '</td>' +
       '</tr>';
     });
 
@@ -382,7 +382,7 @@
         '<td style="font-weight:500;">' + p.name + '</td>' +
         '<td>' + (p.type === 'income' ? '<span class="badge badge-success">💚 รายรับ</span>' : '<span class="badge badge-danger">❤️ รายจ่าย</span>') + '</td>' +
         '<td>' + (freqMap[p.frequency] || p.frequency) + '</td>' +
-        '<td class="text-right ' + (p.type === 'income' ? 'text-income' : 'text-expense') + '" style="font-weight:600;">฿' + formatMoney(p.amount) + '</td>' +
+        '<td class="text-right ' + (p.type === 'income' ? 'text-income' : 'text-expense') + '" style="font-weight:600;">₭' + formatMoney(p.amount) + '</td>' +
         '<td>' + formatDate(p.start_date) + '</td>' +
         '<td>' + (p.end_date ? formatDate(p.end_date) : '∞') + '</td>' +
         '<td>' +

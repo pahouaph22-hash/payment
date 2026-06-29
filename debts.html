@@ -43,9 +43,9 @@
 
       <!-- KPI -->
       <div class="kpi-grid" style="margin-bottom:20px;">
-        <div class="kpi-card"><div class="kpi-icon expense">💸</div><div class="kpi-body"><div class="kpi-label">เจ้าหนี้คงค้าง</div><div class="kpi-value expense" id="kpiPayable">฿0</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon income">💰</div><div class="kpi-body"><div class="kpi-label">ลูกหนี้คงค้าง</div><div class="kpi-value income" id="kpiReceivable">฿0</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon balance">⚠️</div><div class="kpi-body"><div class="kpi-label">เกินกำหนด</div><div class="kpi-value expense" id="kpiOverdue">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon expense">💸</div><div class="kpi-body"><div class="kpi-label">เจ้าหนี้คงค้าง</div><div class="kpi-value expense" id="kpiPayable">₭0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon income">💰</div><div class="kpi-body"><div class="kpi-label">ลูกหนี้คงค้าง</div><div class="kpi-value income" id="kpiReceivable">₭0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon balance">⚠️</div><div class="kpi-body"><div class="kpi-label">เกินกำหนด</div><div class="kpi-value expense" id="kpiOverdue">₭0</div></div></div>
         <div class="kpi-card"><div class="kpi-icon profit">📋</div><div class="kpi-body"><div class="kpi-label">รายการทั้งหมด</div><div class="kpi-value profit" id="kpiCount">0</div></div></div>
       </div>
 
@@ -172,7 +172,7 @@
       <input type="hidden" id="payDebtId">
       <div style="padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:16px;">
         <div style="font-size:13px;color:#64748b;">ยอดคงค้าง</div>
-        <div style="font-size:22px;font-weight:700;color:#ef4444;" id="payRemaining">฿0</div>
+        <div style="font-size:22px;font-weight:700;color:#ef4444;" id="payRemaining">₭0</div>
       </div>
       <div class="form-group">
         <label class="form-label">จำนวนที่ชำระ <span class="required">*</span></label>
@@ -259,9 +259,9 @@
       }
     });
 
-    document.getElementById('kpiPayable').textContent = '฿' + formatMoney(payable);
-    document.getElementById('kpiReceivable').textContent = '฿' + formatMoney(receivable);
-    document.getElementById('kpiOverdue').textContent = '฿' + formatMoney(overdue);
+    document.getElementById('kpiPayable').textContent = '₭' + formatMoney(payable);
+    document.getElementById('kpiReceivable').textContent = '₭' + formatMoney(receivable);
+    document.getElementById('kpiOverdue').textContent = '₭' + formatMoney(overdue);
     document.getElementById('kpiCount').textContent = allDebts.length;
   }
 
@@ -323,9 +323,9 @@
         '<td>' + (isPayable ? '<span class="badge badge-danger">💸 เจ้าหนี้</span>' : '<span class="badge badge-success">💰 ลูกหนี้</span>') + '</td>' +
         '<td style="font-weight:500;">' + d.counterparty_name + '</td>' +
         '<td style="color:#64748b;font-size:12px;">' + (d.counterparty_contact || '—') + '</td>' +
-        '<td class="text-right">฿' + formatMoney(d.amount) + '</td>' +
-        '<td class="text-right text-income">฿' + formatMoney(d.paid_amount || 0) + '</td>' +
-        '<td class="text-right ' + (remaining > 0 ? 'text-expense' : 'text-income') + '" style="font-weight:600;">฿' + formatMoney(remaining) + '</td>' +
+        '<td class="text-right">₭' + formatMoney(d.amount) + '</td>' +
+        '<td class="text-right text-income">₭' + formatMoney(d.paid_amount || 0) + '</td>' +
+        '<td class="text-right ' + (remaining > 0 ? 'text-expense' : 'text-income') + '" style="font-weight:600;">₭' + formatMoney(remaining) + '</td>' +
         '<td style="white-space:nowrap;' + dueDateStyle + '">' + (d.due_date ? formatDate(d.due_date) : '—') + (isOverdue ? ' ⚠️' : '') + '</td>' +
         '<td>' + (statusMap[d.status] || d.status) + '</td>' +
         '<td style="white-space:nowrap;">' +
@@ -421,7 +421,7 @@
   // ============================================
   window.openPaymentModal = function(debtId, remaining) {
     document.getElementById('payDebtId').value = debtId;
-    document.getElementById('payRemaining').textContent = '฿' + formatMoney(remaining);
+    document.getElementById('payRemaining').textContent = '₭' + formatMoney(remaining);
     document.getElementById('fPayAmount').value = '';
     document.getElementById('fPayDate').value = todayISO();
     document.getElementById('fPayNote').value = '';

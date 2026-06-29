@@ -45,9 +45,9 @@
 
       <!-- KPI -->
       <div class="kpi-grid" style="margin-bottom:20px;">
-        <div class="kpi-card"><div class="kpi-icon profit">🏭</div><div class="kpi-body"><div class="kpi-label">มูลค่าทรัพย์สินรวม</div><div class="kpi-value profit" id="aKpiTotal">฿0</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon income">💚</div><div class="kpi-body"><div class="kpi-label">มูลค่าปัจจุบัน</div><div class="kpi-value income" id="aKpiCurrent">฿0</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon expense">📉</div><div class="kpi-body"><div class="kpi-label">ค่าเสื่อมราคาสะสม</div><div class="kpi-value expense" id="aKpiDeprec">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon profit">🏭</div><div class="kpi-body"><div class="kpi-label">มูลค่าทรัพย์สินรวม</div><div class="kpi-value profit" id="aKpiTotal">₭0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon income">💚</div><div class="kpi-body"><div class="kpi-label">มูลค่าปัจจุบัน</div><div class="kpi-value income" id="aKpiCurrent">₭0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon expense">📉</div><div class="kpi-body"><div class="kpi-label">ค่าเสื่อมราคาสะสม</div><div class="kpi-value expense" id="aKpiDeprec">₭0</div></div></div>
         <div class="kpi-card"><div class="kpi-icon balance">📦</div><div class="kpi-body"><div class="kpi-label">จำนวนทรัพย์สิน</div><div class="kpi-value balance" id="aKpiCount">0</div></div></div>
       </div>
 
@@ -272,14 +272,14 @@
     var purchaseDate = document.getElementById('fAssetDate').value;
 
     var annualDepr = calcAnnualDepr(price, life, method);
-    document.getElementById('deprecPerYear').textContent = method === 'none' ? 'ไม่คิดค่าเสื่อม' : '฿' + formatMoney(annualDepr);
+    document.getElementById('deprecPerYear').textContent = method === 'none' ? 'ไม่คิดค่าเสื่อม' : '₭' + formatMoney(annualDepr);
 
     if (purchaseDate && method !== 'none') {
       var mockAsset = { purchase_price: price, purchase_date: purchaseDate, depreciation_method: method, useful_life_years: life };
       var currentVal = calcCurrentValue(mockAsset);
-      document.getElementById('deprecCurrentVal').textContent = '฿' + formatMoney(currentVal);
+      document.getElementById('deprecCurrentVal').textContent = '₭' + formatMoney(currentVal);
     } else {
-      document.getElementById('deprecCurrentVal').textContent = '฿' + formatMoney(price);
+      document.getElementById('deprecCurrentVal').textContent = '₭' + formatMoney(price);
     }
   };
 
@@ -308,9 +308,9 @@
         deprec += a._deprAccum;
       }
     });
-    document.getElementById('aKpiTotal').textContent = '฿' + formatMoney(total);
-    document.getElementById('aKpiCurrent').textContent = '฿' + formatMoney(current);
-    document.getElementById('aKpiDeprec').textContent = '฿' + formatMoney(deprec);
+    document.getElementById('aKpiTotal').textContent = '₭' + formatMoney(total);
+    document.getElementById('aKpiCurrent').textContent = '₭' + formatMoney(current);
+    document.getElementById('aKpiDeprec').textContent = '₭' + formatMoney(deprec);
     document.getElementById('aKpiCount').textContent = allAssets.filter(function(a) { return a.status !== 'disposed'; }).length;
   }
 
@@ -330,7 +330,7 @@
         labels: Object.values(typeMap).map(function(t) { return t.label; }),
         datasets: [{ data: Object.values(typeMap).map(function(t) { return t.value; }), backgroundColor: ['#6366f1','#10b981','#f59e0b'], borderRadius: 6 }]
       },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '฿' + formatMoney(v,0); } } } } }
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '₭' + formatMoney(v,0); } } } } }
     });
 
     if (statusChartInst) statusChartInst.destroy();
@@ -395,12 +395,12 @@
         '</td>' +
         '<td>' + (typeMap[a.type] || a.type) + '</td>' +
         '<td style="white-space:nowrap;">' + formatDate(a.purchase_date) + '</td>' +
-        '<td class="text-right">฿' + formatMoney(a.purchase_price) + '</td>' +
+        '<td class="text-right">₭' + formatMoney(a.purchase_price) + '</td>' +
         '<td class="text-right">' +
-          '<div style="font-weight:600;color:' + (pctRemain > 50 ? '#10b981' : pctRemain > 20 ? '#f59e0b' : '#ef4444') + ';">฿' + formatMoney(a._currentValue) + '</div>' +
+          '<div style="font-weight:600;color:' + (pctRemain > 50 ? '#10b981' : pctRemain > 20 ? '#f59e0b' : '#ef4444') + ';">₭' + formatMoney(a._currentValue) + '</div>' +
           '<div style="font-size:11px;color:#94a3b8;">' + pctRemain.toFixed(0) + '% คงเหลือ</div>' +
         '</td>' +
-        '<td class="text-right text-expense">' + (a.depreciation_method !== 'none' ? '฿' + formatMoney(a._annualDepr) : '—') + '</td>' +
+        '<td class="text-right text-expense">' + (a.depreciation_method !== 'none' ? '₭' + formatMoney(a._annualDepr) : '—') + '</td>' +
         '<td style="color:#64748b;font-size:12px;">' + (a.location || '—') + '</td>' +
         '<td>' + (statusMap[a.status] || a.status) + '</td>' +
         '<td style="white-space:nowrap;">' +
@@ -431,18 +431,18 @@
         detail('ประเภท', a.type === 'fixed' ? '🏭 สินทรัพย์ถาวร' : a.type === 'current' ? '💧 สินทรัพย์หมุนเวียน' : '💡 ไม่มีตัวตน') +
         detail('สถานะ', a.status === 'active' ? '✅ ใช้งานอยู่' : a.status === 'maintenance' ? '🔧 ซ่อมบำรุง' : '📦 จำหน่ายแล้ว') +
         detail('วันที่ซื้อ', formatDate(a.purchase_date)) +
-        detail('ราคาซื้อ', '฿' + formatMoney(a.purchase_price)) +
+        detail('ราคาซื้อ', '₭' + formatMoney(a.purchase_price)) +
         detail('อายุการใช้งาน', a.useful_life_years ? a.useful_life_years + ' ปี' : '—') +
         detail('วิธีเสื่อมราคา', methodMap[a.depreciation_method] || '—') +
-        detail('ค่าเสื่อม/ปี', a.depreciation_method !== 'none' ? '฿' + formatMoney(a._annualDepr) : '—') +
-        detail('เสื่อมสะสม', '฿' + formatMoney(a._deprAccum)) +
+        detail('ค่าเสื่อม/ปี', a.depreciation_method !== 'none' ? '₭' + formatMoney(a._annualDepr) : '—') +
+        detail('เสื่อมสะสม', '₭' + formatMoney(a._deprAccum)) +
         detail('สถานที่', a.location || '—') +
         detail('S/N', a.serial_number || '—') +
       '</div>' +
       '<div style="margin-bottom:16px;">' +
         '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
           '<span>มูลค่าปัจจุบัน</span>' +
-          '<span style="font-weight:700;color:' + barColor + ';">฿' + formatMoney(a._currentValue) + ' (' + pct.toFixed(1) + '%)</span>' +
+          '<span style="font-weight:700;color:' + barColor + ';">₭' + formatMoney(a._currentValue) + ' (' + pct.toFixed(1) + '%)</span>' +
         '</div>' +
         '<div style="height:12px;background:#f1f5f9;border-radius:6px;overflow:hidden;">' +
           '<div style="height:100%;width:' + pct + '%;background:' + barColor + ';border-radius:6px;"></div>' +

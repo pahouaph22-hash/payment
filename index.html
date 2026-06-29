@@ -301,11 +301,11 @@ body.dark-mode .goal-meta{color:#fcd34d;}
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">เป้าหมาย (บาท) <span class="required">*</span></label>
+          <label class="form-label">เป้าหมาย (ກີບ) <span class="required">*</span></label>
           <input type="number" class="form-control" id="fGoalTarget" placeholder="100000">
         </div>
         <div class="form-group">
-          <label class="form-label">ออมแล้ว (บาท)</label>
+          <label class="form-label">ออมแล้ว (ກີບ)</label>
           <input type="number" class="form-control" id="fGoalCurrent" placeholder="0">
         </div>
       </div>
@@ -399,15 +399,15 @@ body.dark-mode .goal-meta{color:#fcd34d;}
     var r=await supabase.from('transactions').select('type,amount').eq('status','completed').eq('date',today);
     var inc=0,exp=0,ic=0,ec=0;
     (r.data||[]).forEach(function(t){if(t.type==='income'){inc+=Number(t.amount);ic++;}else{exp+=Number(t.amount);ec++;}});
-    document.getElementById('todayIncome').textContent='\u0E3F'+formatMoney(inc);
+    document.getElementById('todayIncome').textContent='\u20AD'+formatMoney(inc);
     document.getElementById('todayIncomeCount').textContent=ic+' รายการ';
-    document.getElementById('todayExpense').textContent='\u0E3F'+formatMoney(exp);
+    document.getElementById('todayExpense').textContent='\u20AD'+formatMoney(exp);
     document.getElementById('todayExpenseCount').textContent=ec+' รายการ';
     var r2=await supabase.from('transactions').select('type,amount').eq('status','completed').gte('date',monthStart()).lte('date',monthEnd());
     var mi=0,me=0;(r2.data||[]).forEach(function(t){if(t.type==='income')mi+=Number(t.amount);else me+=Number(t.amount);});
     var bal=mi-me;
-    document.getElementById('monthBalance').textContent=(bal<0?'-':'')+'\u0E3F'+formatMoney(Math.abs(bal));
-    document.getElementById('monthBalanceSub').textContent='\u0E3F'+formatMoney(mi)+' - \u0E3F'+formatMoney(me);
+    document.getElementById('monthBalance').textContent=(bal<0?'-':'')+'\u20AD'+formatMoney(Math.abs(bal));
+    document.getElementById('monthBalanceSub').textContent='\u20AD'+formatMoney(mi)+' - \u20AD'+formatMoney(me);
   }
 
   function renderQuickBtns(){
@@ -416,7 +416,7 @@ body.dark-mode .goal-meta{color:#fcd34d;}
     quickFavorites.forEach(function(f,i){
       var isInc=f.type==='income';
       html+='<button class="quick-btn'+( isInc?' income-btn':'')+'" onclick="quickFill('+i+')">'+
-        (isInc?'\u1F49A':'\u2764\uFE0F')+' '+f.name+' <span style="color:#94a3b8;font-size:11px;">\u0E3F'+formatMoney(f.amount,0)+'</span></button>';
+        (isInc?'\u1F49A':'\u2764\uFE0F')+' '+f.name+' <span style="color:#94a3b8;font-size:11px;">\u20AD'+formatMoney(f.amount,0)+'</span></button>';
     });
     html+='<button class="quick-btn add-new" onclick="openQuickModal()">&#x2795; เพิ่ม</button>';
     el.innerHTML=html;
@@ -486,16 +486,16 @@ body.dark-mode .goal-meta{color:#fcd34d;}
     function row(label,p,c,max,color,chgStr,warn){
       var pp=(p/max*100).toFixed(1),cp=(c/max*100).toFixed(1);
       return '<div style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>'+label+'</span><span style="font-weight:600;color:'+(warn?'#ef4444':'#10b981')+';">'+chgStr+'</span></div>'+
-      '<div class="compare-row"><span style="font-size:11px;color:var(--gray-400);width:36px;">เดิม</span><div class="compare-bar-bg"><div class="compare-bar" style="width:'+pp+'%;background:'+color+'55;"></div></div><span style="font-size:12px;width:76px;text-align:right;">\u0E3F'+formatMoney(p,0)+'</span></div>'+
-      '<div class="compare-row"><span style="font-size:11px;color:var(--gray-400);width:36px;">นี้</span><div class="compare-bar-bg"><div class="compare-bar" style="width:'+cp+'%;background:'+color+';"></div></div><span style="font-size:12px;font-weight:600;width:76px;text-align:right;">\u0E3F'+formatMoney(c,0)+'</span></div></div>';
+      '<div class="compare-row"><span style="font-size:11px;color:var(--gray-400);width:36px;">เดิม</span><div class="compare-bar-bg"><div class="compare-bar" style="width:'+pp+'%;background:'+color+'55;"></div></div><span style="font-size:12px;width:76px;text-align:right;">\u20AD'+formatMoney(p,0)+'</span></div>'+
+      '<div class="compare-row"><span style="font-size:11px;color:var(--gray-400);width:36px;">นี้</span><div class="compare-bar-bg"><div class="compare-bar" style="width:'+cp+'%;background:'+color+';"></div></div><span style="font-size:12px;font-weight:600;width:76px;text-align:right;">\u20AD'+formatMoney(c,0)+'</span></div></div>';
     }
     document.getElementById('monthCompare').innerHTML=
       '<div style="font-size:12px;color:var(--gray-500);margin-bottom:10px;">'+lN+' &#x2192; '+mN+'</div>'+
       row('\u1F49A รายรับ',prev.inc,cur.inc,maxI,'#10b981',ic,ic.startsWith('-'))+
       row('\u2764\uFE0F รายจ่าย',prev.exp,cur.exp,maxE,'#ef4444',ec,!ec.startsWith('-')&&ec!=='0%')+
       '<div style="border-top:1px solid var(--gray-200);margin-top:10px;padding-top:10px;">'+
-        '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>กำไรเดือนที่แล้ว</span><span style="font-weight:600;">\u0E3F'+formatMoney(prev.profit)+'</span></div>'+
-        '<div style="display:flex;justify-content:space-between;font-size:13px;"><span>กำไรเดือนนี้</span><span style="font-weight:700;color:'+(cur.profit>=0?'#10b981':'#ef4444')+';">\u0E3F'+formatMoney(cur.profit)+'</span></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>กำไรเดือนที่แล้ว</span><span style="font-weight:600;">\u20AD'+formatMoney(prev.profit)+'</span></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:13px;"><span>กำไรเดือนนี้</span><span style="font-weight:700;color:'+(cur.profit>=0?'#10b981':'#ef4444')+';">\u20AD'+formatMoney(cur.profit)+'</span></div>'+
       '</div>';
   }
 
@@ -518,7 +518,7 @@ body.dark-mode .goal-meta{color:#fcd34d;}
   };
 
   window.depositGoal=function(idx){
-    var amt=parseFloat(prompt('เพิ่มยอดออม (บาท):'));if(!amt||amt<=0)return;
+    var amt=parseFloat(prompt('เพิ่มยอดออม (ກີບ):'));if(!amt||amt<=0)return;
     savingsGoals[idx].current=(savingsGoals[idx].current||0)+amt;
     localStorage.setItem('finance_savings_goals',JSON.stringify(savingsGoals));
     renderSavingsGoals();showToast('เพิ่มยอดออมสำเร็จ');
@@ -546,8 +546,8 @@ body.dark-mode .goal-meta{color:#fcd34d;}
           '</div>'+
         '</div>'+
         '<div class="goal-progress"><div class="goal-bar" style="width:'+pct+'%;"></div></div>'+
-        '<div class="goal-meta"><span>\u0E3F'+formatMoney(g.current||0)+' / \u0E3F'+formatMoney(g.target)+'</span><span>'+pct.toFixed(1)+'%</span></div>'+
-        (needed>0?'<div style="font-size:11px;color:#b45309;margin-top:4px;">ต้องออมอีก \u0E3F'+formatMoney(needed)+(daysLeft!==null?' | เหลือ '+daysLeft+' วัน':'')+'</div>':'<div style="font-size:12px;color:#065f46;margin-top:4px;">\u1F389 ถึงเป้าหมายแล้ว!</div>')+
+        '<div class="goal-meta"><span>\u20AD'+formatMoney(g.current||0)+' / \u20AD'+formatMoney(g.target)+'</span><span>'+pct.toFixed(1)+'%</span></div>'+
+        (needed>0?'<div style="font-size:11px;color:#b45309;margin-top:4px;">ต้องออมอีก \u20AD'+formatMoney(needed)+(daysLeft!==null?' | เหลือ '+daysLeft+' วัน':'')+'</div>':'<div style="font-size:12px;color:#065f46;margin-top:4px;">\u1F389 ถึงเป้าหมายแล้ว!</div>')+
       '</div>';
     }).join('');
   }
@@ -574,13 +574,13 @@ body.dark-mode .goal-meta{color:#fcd34d;}
     var r=await supabase.from('transactions').select('type,amount').eq('status','completed').gte('date',range.from).lte('date',range.to);
     var inc=0,exp=0;(r.data||[]).forEach(function(t){if(t.type==='income')inc+=Number(t.amount);else exp+=Number(t.amount);});
     var profit=inc-exp;
-    document.getElementById('kpiIncome').textContent='\u0E3F'+formatMoney(inc);
-    document.getElementById('kpiExpense').textContent='\u0E3F'+formatMoney(exp);
-    document.getElementById('kpiProfit').textContent=(profit<0?'-':'')+'\u0E3F'+formatMoney(Math.abs(profit));
+    document.getElementById('kpiIncome').textContent='\u20AD'+formatMoney(inc);
+    document.getElementById('kpiExpense').textContent='\u20AD'+formatMoney(exp);
+    document.getElementById('kpiProfit').textContent=(profit<0?'-':'')+'\u20AD'+formatMoney(Math.abs(profit));
     document.getElementById('kpiProfit').className='kpi-value '+(profit>=0?'profit':'expense');
     var r2=await supabase.from('transactions').select('type,amount').eq('status','completed');
     var ti=0,te=0;(r2.data||[]).forEach(function(t){if(t.type==='income')ti+=Number(t.amount);else te+=Number(t.amount);});
-    document.getElementById('kpiBalance').textContent='\u0E3F'+formatMoney(ti-te);
+    document.getElementById('kpiBalance').textContent='\u20AD'+formatMoney(ti-te);
   }
 
   async function loadBarChart(){
@@ -595,7 +595,7 @@ body.dark-mode .goal-meta{color:#fcd34d;}
       iD.push(inc);eD.push(exp);
     }
     if(barChartInst)barChartInst.destroy();
-    barChartInst=new Chart(document.getElementById('barChart'),{type:'bar',data:{labels:months,datasets:[{label:'รายรับ',data:iD,backgroundColor:'rgba(16,185,129,.8)',borderRadius:6},{label:'รายจ่าย',data:eD,backgroundColor:'rgba(239,68,68,.8)',borderRadius:6}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,ticks:{callback:function(v){return'\u0E3F'+formatMoney(v,0);}}}}}});
+    barChartInst=new Chart(document.getElementById('barChart'),{type:'bar',data:{labels:months,datasets:[{label:'รายรับ',data:iD,backgroundColor:'rgba(16,185,129,.8)',borderRadius:6},{label:'รายจ่าย',data:eD,backgroundColor:'rgba(239,68,68,.8)',borderRadius:6}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,ticks:{callback:function(v){return'\u20AD'+formatMoney(v,0);}}}}}});
   }
 
   async function loadPieChart(range){
@@ -616,7 +616,7 @@ body.dark-mode .goal-meta{color:#fcd34d;}
     var labels=Object.keys(dm),values=Object.values(dm),today=now.getDate();
     var colors=labels.map(function(d){return parseInt(d)===today?'#6366f1':'rgba(239,68,68,.6)';});
     if(dailyChartInst)dailyChartInst.destroy();
-    dailyChartInst=new Chart(document.getElementById('dailyChart'),{type:'bar',data:{labels:labels,datasets:[{data:values,backgroundColor:colors,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},maxTicksLimit:10}},y:{beginAtZero:true,ticks:{font:{size:9},callback:function(v){return'\u0E3F'+formatMoney(v,0);}}}}}});
+    dailyChartInst=new Chart(document.getElementById('dailyChart'),{type:'bar',data:{labels:labels,datasets:[{data:values,backgroundColor:colors,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},maxTicksLimit:10}},y:{beginAtZero:true,ticks:{font:{size:9},callback:function(v){return'\u20AD'+formatMoney(v,0);}}}}}});
   }
 
   async function loadRecentTransactions(){
@@ -627,7 +627,7 @@ body.dark-mode .goal-meta{color:#fcd34d;}
       var icon=(t.categories&&t.categories.icon)||'\u1F4CB';
       var name=t.description||(t.categories&&t.categories.name_th)||'\u2014';
       var isInc=t.type==='income';
-      return '<tr><td style="white-space:nowrap;font-size:12px;">'+formatDate(t.date)+'</td><td>'+icon+' '+name+'</td><td class="text-right '+(isInc?'text-income':'text-expense')+'">'+( isInc?'+':'-')+'\u0E3F'+formatMoney(t.amount)+'</td></tr>';
+      return '<tr><td style="white-space:nowrap;font-size:12px;">'+formatDate(t.date)+'</td><td>'+icon+' '+name+'</td><td class="text-right '+(isInc?'text-income':'text-expense')+'">'+( isInc?'+':'-')+'\u20AD'+formatMoney(t.amount)+'</td></tr>';
     }).join('');
   }
 
@@ -644,7 +644,7 @@ body.dark-mode .goal-meta{color:#fcd34d;}
       var pct=Math.min(spent/b.amount*100,100),ap=b.alert_threshold||80;
       var bc=pct>=100?'#ef4444':pct>=ap?'#f59e0b':'#10b981';
       var cn=b.categories?(b.categories.icon+' '+b.categories.name_th):b.name;
-      html+='<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;"><span>'+cn+'</span><span>\u0E3F'+formatMoney(spent,0)+' / \u0E3F'+formatMoney(b.amount,0)+'</span></div><div style="height:7px;background:#f1f5f9;border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+bc+';border-radius:4px;"></div></div><div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+pct.toFixed(0)+'%</div></div>';
+      html+='<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;"><span>'+cn+'</span><span>\u20AD'+formatMoney(spent,0)+' / \u20AD'+formatMoney(b.amount,0)+'</span></div><div style="height:7px;background:#f1f5f9;border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+bc+';border-radius:4px;"></div></div><div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+pct.toFixed(0)+'%</div></div>';
     }
     el.innerHTML=html;
   }
@@ -655,7 +655,7 @@ body.dark-mode .goal-meta{color:#fcd34d;}
     var el=document.getElementById('debtAlertList');
     if(!r.data||!r.data.length){el.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;">ไม่มีหนี้ใกล้ครบกำหนด</div>';return;}
     el.innerHTML='<div class="table-wrapper"><table class="table"><thead><tr><th>ประเภท</th><th>ชื่อ</th><th class="text-right">คงค้าง</th><th>ครบกำหนด</th></tr></thead><tbody>'+
-      r.data.map(function(d){var rem=Number(d.amount)-Number(d.paid_amount||0);var isOD=d.due_date&&d.due_date<todayISO();return '<tr><td><span class="badge '+(isOD?'badge-danger':'badge-warning')+'">'+( d.type==='payable'?'เจ้าหนี้':'ลูกหนี้')+'</span></td><td>'+d.counterparty_name+'</td><td class="text-right text-expense">\u0E3F'+formatMoney(rem)+'</td><td style="font-size:12px;white-space:nowrap;'+(isOD?'color:#ef4444;font-weight:600;':'')+'">'+formatDate(d.due_date)+(isOD?' \u26A0\uFE0F':'')+'</td></tr>';}).join('')+
+      r.data.map(function(d){var rem=Number(d.amount)-Number(d.paid_amount||0);var isOD=d.due_date&&d.due_date<todayISO();return '<tr><td><span class="badge '+(isOD?'badge-danger':'badge-warning')+'">'+( d.type==='payable'?'เจ้าหนี้':'ลูกหนี้')+'</span></td><td>'+d.counterparty_name+'</td><td class="text-right text-expense">\u20AD'+formatMoney(rem)+'</td><td style="font-size:12px;white-space:nowrap;'+(isOD?'color:#ef4444;font-weight:600;':'')+'">'+formatDate(d.due_date)+(isOD?' \u26A0\uFE0F':'')+'</td></tr>';}).join('')+
     '</tbody></table></div>';
   }
 

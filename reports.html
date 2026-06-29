@@ -73,9 +73,9 @@
       <div id="pnlTab">
         <!-- KPI Summary -->
         <div class="kpi-grid" style="margin-bottom:20px;">
-          <div class="kpi-card"><div class="kpi-icon income">💚</div><div class="kpi-body"><div class="kpi-label">รายรับรวม</div><div class="kpi-value income" id="rpIncome">฿0</div></div></div>
-          <div class="kpi-card"><div class="kpi-icon expense">❤️</div><div class="kpi-body"><div class="kpi-label">รายจ่ายรวม</div><div class="kpi-value expense" id="rpExpense">฿0</div></div></div>
-          <div class="kpi-card"><div class="kpi-icon profit">💜</div><div class="kpi-body"><div class="kpi-label">กำไรขั้นต้น</div><div class="kpi-value profit" id="rpGross">฿0</div></div></div>
+          <div class="kpi-card"><div class="kpi-icon income">💚</div><div class="kpi-body"><div class="kpi-label">รายรับรวม</div><div class="kpi-value income" id="rpIncome">₭0</div></div></div>
+          <div class="kpi-card"><div class="kpi-icon expense">❤️</div><div class="kpi-body"><div class="kpi-label">รายจ่ายรวม</div><div class="kpi-value expense" id="rpExpense">₭0</div></div></div>
+          <div class="kpi-card"><div class="kpi-icon profit">💜</div><div class="kpi-body"><div class="kpi-label">กำไรขั้นต้น</div><div class="kpi-value profit" id="rpGross">₭0</div></div></div>
           <div class="kpi-card"><div class="kpi-icon balance">💛</div><div class="kpi-body"><div class="kpi-label">อัตรากำไร</div><div class="kpi-value balance" id="rpMargin">0%</div></div></div>
         </div>
 
@@ -145,9 +145,9 @@
       <!-- Cost & ROI Tab -->
       <div id="costTab" style="display:none;">
         <div class="kpi-grid" style="margin-bottom:20px;">
-          <div class="kpi-card"><div class="kpi-icon expense">📦</div><div class="kpi-body"><div class="kpi-label">ต้นทุนสินค้า (COGS)</div><div class="kpi-value expense" id="rpCOGS">฿0</div></div></div>
-          <div class="kpi-card"><div class="kpi-icon balance">🏢</div><div class="kpi-body"><div class="kpi-label">ต้นทุนดำเนินงาน</div><div class="kpi-value balance" id="rpOpex">฿0</div></div></div>
-          <div class="kpi-card"><div class="kpi-icon profit">📊</div><div class="kpi-body"><div class="kpi-label">กำไรขั้นต้น</div><div class="kpi-value profit" id="rpGross2">฿0</div></div></div>
+          <div class="kpi-card"><div class="kpi-icon expense">📦</div><div class="kpi-body"><div class="kpi-label">ต้นทุนสินค้า (COGS)</div><div class="kpi-value expense" id="rpCOGS">₭0</div></div></div>
+          <div class="kpi-card"><div class="kpi-icon balance">🏢</div><div class="kpi-body"><div class="kpi-label">ต้นทุนดำเนินงาน</div><div class="kpi-value balance" id="rpOpex">₭0</div></div></div>
+          <div class="kpi-card"><div class="kpi-icon profit">📊</div><div class="kpi-body"><div class="kpi-label">กำไรขั้นต้น</div><div class="kpi-value profit" id="rpGross2">₭0</div></div></div>
           <div class="kpi-card"><div class="kpi-icon income">🎯</div><div class="kpi-body"><div class="kpi-label">ROI</div><div class="kpi-value income" id="rpROI">0%</div></div></div>
         </div>
         <div class="card">
@@ -272,9 +272,9 @@
     var profit = totalIncome - totalExpense;
     var margin = totalIncome > 0 ? (profit / totalIncome * 100) : 0;
 
-    document.getElementById('rpIncome').textContent = '฿' + formatMoney(totalIncome);
-    document.getElementById('rpExpense').textContent = '฿' + formatMoney(totalExpense);
-    document.getElementById('rpGross').textContent = (profit >= 0 ? '' : '-') + '฿' + formatMoney(Math.abs(profit));
+    document.getElementById('rpIncome').textContent = '₭' + formatMoney(totalIncome);
+    document.getElementById('rpExpense').textContent = '₭' + formatMoney(totalExpense);
+    document.getElementById('rpGross').textContent = (profit >= 0 ? '' : '-') + '₭' + formatMoney(Math.abs(profit));
     document.getElementById('rpGross').className = 'kpi-value ' + (profit >= 0 ? 'profit' : 'expense');
     document.getElementById('rpMargin').textContent = margin.toFixed(1) + '%';
 
@@ -292,17 +292,17 @@
         var mLabel = mDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'long' });
         return '<tr>' +
           '<td>' + mLabel + '</td>' +
-          '<td class="text-right text-income">฿' + formatMoney(d.income) + '</td>' +
-          '<td class="text-right text-expense">฿' + formatMoney(d.expense) + '</td>' +
-          '<td class="text-right ' + (p >= 0 ? 'text-profit' : 'text-expense') + '">' + (p >= 0 ? '' : '-') + '฿' + formatMoney(Math.abs(p)) + '</td>' +
+          '<td class="text-right text-income">₭' + formatMoney(d.income) + '</td>' +
+          '<td class="text-right text-expense">₭' + formatMoney(d.expense) + '</td>' +
+          '<td class="text-right ' + (p >= 0 ? 'text-profit' : 'text-expense') + '">' + (p >= 0 ? '' : '-') + '₭' + formatMoney(Math.abs(p)) + '</td>' +
           '<td class="text-right">' + mg.toFixed(1) + '%</td>' +
         '</tr>';
       }).join('') +
       '<tr style="font-weight:700;background:#f8fafc;">' +
         '<td>รวมทั้งหมด</td>' +
-        '<td class="text-right text-income">฿' + formatMoney(totalIncome) + '</td>' +
-        '<td class="text-right text-expense">฿' + formatMoney(totalExpense) + '</td>' +
-        '<td class="text-right ' + (profit >= 0 ? 'text-profit' : 'text-expense') + '">' + (profit >= 0 ? '' : '-') + '฿' + formatMoney(Math.abs(profit)) + '</td>' +
+        '<td class="text-right text-income">₭' + formatMoney(totalIncome) + '</td>' +
+        '<td class="text-right text-expense">₭' + formatMoney(totalExpense) + '</td>' +
+        '<td class="text-right ' + (profit >= 0 ? 'text-profit' : 'text-expense') + '">' + (profit >= 0 ? '' : '-') + '₭' + formatMoney(Math.abs(profit)) + '</td>' +
         '<td class="text-right">' + margin.toFixed(1) + '%</td>' +
       '</tr>';
     }
@@ -322,7 +322,7 @@
       options: {
         responsive: true,
         plugins: { legend: { position: 'bottom' } },
-        scales: { y: { ticks: { callback: function(v) { return '฿' + formatMoney(v, 0); } } } }
+        scales: { y: { ticks: { callback: function(v) { return '₭' + formatMoney(v, 0); } } } }
       }
     });
   }
@@ -402,7 +402,7 @@
           '<td>' + c.name + '</td>' +
           '<td>' + (c.type === 'income' ? '<span class="badge badge-success">รายรับ</span>' : '<span class="badge badge-danger">รายจ่าย</span>') + '</td>' +
           '<td class="text-right">' + c.count + '</td>' +
-          '<td class="text-right ' + (c.type === 'income' ? 'text-income' : 'text-expense') + '">฿' + formatMoney(c.total) + '</td>' +
+          '<td class="text-right ' + (c.type === 'income' ? 'text-income' : 'text-expense') + '">₭' + formatMoney(c.total) + '</td>' +
           '<td class="text-right">' + c.pct.toFixed(1) + '%</td>' +
         '</tr>';
       }).join('');
@@ -447,7 +447,7 @@
       options: {
         responsive: true,
         plugins: { legend: { position: 'bottom' } },
-        scales: { y: { ticks: { callback: function(v) { return '฿' + formatMoney(v, 0); } } } }
+        scales: { y: { ticks: { callback: function(v) { return '₭' + formatMoney(v, 0); } } } }
       }
     });
 
@@ -464,17 +464,17 @@
       '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">' +
         '<div style="padding:16px;background:#f8fafc;border-radius:8px;">' +
           '<div style="font-size:12px;color:#64748b;margin-bottom:8px;">📊 รายรับเฉลี่ย/เดือน</div>' +
-          '<div style="font-size:20px;font-weight:700;color:#10b981;">฿' + formatMoney(avgInc, 0) + '</div>' +
+          '<div style="font-size:20px;font-weight:700;color:#10b981;">₭' + formatMoney(avgInc, 0) + '</div>' +
           '<div style="font-size:12px;color:' + (incChange >= 0 ? '#10b981' : '#ef4444') + ';margin-top:4px;">' + (incChange >= 0 ? '▲' : '▼') + ' ' + Math.abs(incChange) + '% จากเดือนก่อน</div>' +
         '</div>' +
         '<div style="padding:16px;background:#f8fafc;border-radius:8px;">' +
           '<div style="font-size:12px;color:#64748b;margin-bottom:8px;">📉 รายจ่ายเฉลี่ย/เดือน</div>' +
-          '<div style="font-size:20px;font-weight:700;color:#ef4444;">฿' + formatMoney(avgExp, 0) + '</div>' +
+          '<div style="font-size:20px;font-weight:700;color:#ef4444;">₭' + formatMoney(avgExp, 0) + '</div>' +
           '<div style="font-size:12px;color:' + (expChange <= 0 ? '#10b981' : '#ef4444') + ';margin-top:4px;">' + (expChange >= 0 ? '▲' : '▼') + ' ' + Math.abs(expChange) + '% จากเดือนก่อน</div>' +
         '</div>' +
         '<div style="padding:16px;background:#f8fafc;border-radius:8px;">' +
           '<div style="font-size:12px;color:#64748b;margin-bottom:8px;">💰 กำไรเฉลี่ย/เดือน</div>' +
-          '<div style="font-size:20px;font-weight:700;color:#6366f1;">฿' + formatMoney(avgInc - avgExp, 0) + '</div>' +
+          '<div style="font-size:20px;font-weight:700;color:#6366f1;">₭' + formatMoney(avgInc - avgExp, 0) + '</div>' +
           '<div style="font-size:12px;color:#64748b;margin-top:4px;">อัตรากำไรเฉลี่ย: ' + (avgInc > 0 ? ((avgInc - avgExp) / avgInc * 100).toFixed(1) : 0) + '%</div>' +
         '</div>' +
       '</div>';
@@ -517,9 +517,9 @@
     var netProfit = totalIncome - cogs - opex;
     var roi = (cogs + opex) > 0 ? (netProfit / (cogs + opex) * 100) : 0;
 
-    document.getElementById('rpCOGS').textContent = '฿' + formatMoney(cogs);
-    document.getElementById('rpOpex').textContent = '฿' + formatMoney(opex);
-    document.getElementById('rpGross2').textContent = (grossProfit >= 0 ? '' : '-') + '฿' + formatMoney(Math.abs(grossProfit));
+    document.getElementById('rpCOGS').textContent = '₭' + formatMoney(cogs);
+    document.getElementById('rpOpex').textContent = '₭' + formatMoney(opex);
+    document.getElementById('rpGross2').textContent = (grossProfit >= 0 ? '' : '-') + '₭' + formatMoney(Math.abs(grossProfit));
     document.getElementById('rpROI').textContent = roi.toFixed(1) + '%';
 
     document.getElementById('costAnalysis').innerHTML =
@@ -527,11 +527,11 @@
         '<div>' +
           '<h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">📦 โครงสร้างต้นทุน</h4>' +
           '<table style="width:100%;font-size:13px;">' +
-            '<tr><td>รายรับรวม</td><td style="text-align:right;font-weight:600;color:#10b981;">฿' + formatMoney(totalIncome) + '</td></tr>' +
-            '<tr><td>ต้นทุนสินค้า (COGS)</td><td style="text-align:right;color:#ef4444;">-฿' + formatMoney(cogs) + '</td></tr>' +
-            '<tr style="border-top:1px solid #e2e8f0;"><td style="font-weight:600;">กำไรขั้นต้น</td><td style="text-align:right;font-weight:600;color:#6366f1;">฿' + formatMoney(grossProfit) + '</td></tr>' +
-            '<tr><td>ค่าใช้จ่ายดำเนินงาน (OPEX)</td><td style="text-align:right;color:#ef4444;">-฿' + formatMoney(opex) + '</td></tr>' +
-            '<tr style="border-top:2px solid #e2e8f0;"><td style="font-weight:700;">กำไรสุทธิ</td><td style="text-align:right;font-weight:700;color:' + (netProfit >= 0 ? '#10b981' : '#ef4444') + ';">฿' + formatMoney(netProfit) + '</td></tr>' +
+            '<tr><td>รายรับรวม</td><td style="text-align:right;font-weight:600;color:#10b981;">₭' + formatMoney(totalIncome) + '</td></tr>' +
+            '<tr><td>ต้นทุนสินค้า (COGS)</td><td style="text-align:right;color:#ef4444;">-₭' + formatMoney(cogs) + '</td></tr>' +
+            '<tr style="border-top:1px solid #e2e8f0;"><td style="font-weight:600;">กำไรขั้นต้น</td><td style="text-align:right;font-weight:600;color:#6366f1;">₭' + formatMoney(grossProfit) + '</td></tr>' +
+            '<tr><td>ค่าใช้จ่ายดำเนินงาน (OPEX)</td><td style="text-align:right;color:#ef4444;">-₭' + formatMoney(opex) + '</td></tr>' +
+            '<tr style="border-top:2px solid #e2e8f0;"><td style="font-weight:700;">กำไรสุทธิ</td><td style="text-align:right;font-weight:700;color:' + (netProfit >= 0 ? '#10b981' : '#ef4444') + ';">₭' + formatMoney(netProfit) + '</td></tr>' +
           '</table>' +
         '</div>' +
         '<div>' +
@@ -559,7 +559,7 @@
       options: {
         responsive: true,
         plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '฿' + formatMoney(v, 0); } } } }
+        scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '₭' + formatMoney(v, 0); } } } }
       }
     });
   }

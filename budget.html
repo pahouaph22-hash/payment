@@ -43,9 +43,9 @@
 
       <!-- KPI -->
       <div class="kpi-grid" style="margin-bottom:20px;">
-        <div class="kpi-card"><div class="kpi-icon profit">🎯</div><div class="kpi-body"><div class="kpi-label">งบประมาณรวม</div><div class="kpi-value profit" id="bKpiTotal">฿0</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon expense">💸</div><div class="kpi-body"><div class="kpi-label">ใช้ไปแล้ว</div><div class="kpi-value expense" id="bKpiUsed">฿0</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon income">💚</div><div class="kpi-body"><div class="kpi-label">คงเหลือ</div><div class="kpi-value income" id="bKpiLeft">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon profit">🎯</div><div class="kpi-body"><div class="kpi-label">งบประมาณรวม</div><div class="kpi-value profit" id="bKpiTotal">₭0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon expense">💸</div><div class="kpi-body"><div class="kpi-label">ใช้ไปแล้ว</div><div class="kpi-value expense" id="bKpiUsed">₭0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon income">💚</div><div class="kpi-body"><div class="kpi-label">คงเหลือ</div><div class="kpi-value income" id="bKpiLeft">₭0</div></div></div>
         <div class="kpi-card"><div class="kpi-icon balance">⚠️</div><div class="kpi-body"><div class="kpi-label">เกินงบ</div><div class="kpi-value expense" id="bKpiOver">0 รายการ</div></div></div>
       </div>
 
@@ -206,9 +206,9 @@
       used += b._spent || 0;
       if (b._over) over++;
     });
-    document.getElementById('bKpiTotal').textContent = '฿' + formatMoney(total);
-    document.getElementById('bKpiUsed').textContent = '฿' + formatMoney(used);
-    document.getElementById('bKpiLeft').textContent = '฿' + formatMoney(Math.max(0, total - used));
+    document.getElementById('bKpiTotal').textContent = '₭' + formatMoney(total);
+    document.getElementById('bKpiUsed').textContent = '₭' + formatMoney(used);
+    document.getElementById('bKpiLeft').textContent = '₭' + formatMoney(Math.max(0, total - used));
     document.getElementById('bKpiOver').textContent = over + ' รายการ';
   }
 
@@ -238,7 +238,7 @@
 
         '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">' +
           '<span style="font-size:13px;color:#64748b;">ใช้ไปแล้ว</span>' +
-          '<span style="font-size:13px;font-weight:600;">฿' + formatMoney(b._spent) + ' / ฿' + formatMoney(b.amount) + '</span>' +
+          '<span style="font-size:13px;font-weight:600;">₭' + formatMoney(b._spent) + ' / ₭' + formatMoney(b.amount) + '</span>' +
         '</div>' +
 
         '<div style="height:12px;background:#f1f5f9;border-radius:6px;overflow:hidden;margin-bottom:8px;">' +
@@ -247,7 +247,7 @@
 
         '<div style="display:flex;justify-content:space-between;font-size:12px;color:#94a3b8;margin-bottom:12px;">' +
           '<span>' + pct.toFixed(1) + '% ของงบประมาณ</span>' +
-          '<span>คงเหลือ: ' + (b._remaining >= 0 ? '฿' + formatMoney(b._remaining) : '<span style="color:#ef4444;">เกิน ฿' + formatMoney(Math.abs(b._remaining)) + '</span>') + '</span>' +
+          '<span>คงเหลือ: ' + (b._remaining >= 0 ? '₭' + formatMoney(b._remaining) : '<span style="color:#ef4444;">เกิน ₭' + formatMoney(Math.abs(b._remaining)) + '</span>') + '</span>' +
         '</div>' +
 
         '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;border-top:1px solid #f1f5f9;padding-top:10px;">' +
@@ -285,7 +285,7 @@
         indexAxis: 'y',
         responsive: true,
         plugins: { legend: { position: 'bottom' } },
-        scales: { x: { beginAtZero: true, ticks: { callback: function(v) { return '฿' + formatMoney(v, 0); } } } }
+        scales: { x: { beginAtZero: true, ticks: { callback: function(v) { return '₭' + formatMoney(v, 0); } } } }
       }
     });
   }
