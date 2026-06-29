@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ผู้ดูแลระบบ</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><span class="logo">💼</span><div><div class="brand-name">ระบบบริหารการเงิน</div></div></div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item"><span class="nav-icon">📊</span><span>แดชบอร์ด</span></a>
+      <a href="transactions.html" class="nav-item"><span class="nav-icon">💰</span><span>รายรับ-รายจ่าย</span></a>
+      <a href="reports.html" class="nav-item"><span class="nav-icon">📈</span><span>รายงาน</span></a>
+      <a href="cashflow.html" class="nav-item"><span class="nav-icon">💧</span><span>กระแสเงินสด</span></a>
+      <a href="budget.html" class="nav-item"><span class="nav-icon">🎯</span><span>งบประมาณ</span></a>
+      <a href="debts.html" class="nav-item"><span class="nav-icon">🤝</span><span>หนี้/ลูกหนี้</span></a>
+      <a href="assets.html" class="nav-item"><span class="nav-icon">🏭</span><span>ทรัพย์สิน</span></a>
+      <a href="admin.html" class="nav-item active"><span class="nav-icon">⚙️</span><span>ผู้ดูแลระบบ</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info"><div class="user-avatar" id="userAvatar">U</div><div><div class="user-name" id="userName">—</div><div class="user-role" id="userRole">—</div></div></div>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">🚪 ออกจากระบบ</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <button class="menu-toggle" onclick="toggleSidebar()" style="display:none;">☰</button>
+      <h1 class="page-title">ผู้ดูแลระบบ</h1>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab-item active" onclick="setAdminTab('users')" id="aTabUsers">จัดการผู้ใช้</div>
+        <div class="tab-item" onclick="setAdminTab('categories')" id="aTabCategories">หมวดหมู่</div>
+        <div class="tab-item" onclick="setAdminTab('backup')" id="aTabBackup">สำรองข้อมูล</div>
+      </div>
+
+      <!-- USERS TAB -->
+      <div id="usersTab">
+        <div class="filter-bar">
+          <h3 style="font-size:15px;font-weight:600;margin:0;">รายชื่อผู้ใช้งานทั้งหมด</h3>
+          <button class="btn btn-primary" onclick="openInviteModal()" style="margin-left:auto;">➕ เพิ่มผู้ใช้</button>
+        </div>
+
+        <div class="card">
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>ผู้ใช้</th>
+                  <th>อีเมล</th>
+                  <th>สิทธิ์</th>
+                  <th>ภาษา</th>
+                  <th>สถานะ</th>
+                  <th>วันที่เข้าร่วม</th>
+                  <th>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="usersBody">
+                <tr><td colspan="7" style="text-align:center;padding:40px;color:#94a3b8;">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Role Explanation -->
+        <div class="card" style="margin-top:16px;">
+          <div class="card-header"><span class="card-title">🔐 คำอธิบายสิทธิ์การใช้งาน</span></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+            <div style="padding:12px;background:#fef3c7;border-radius:8px;">
+              <div style="font-weight:600;margin-bottom:4px;">👑 Admin (ผู้ดูแล)</div>
+              <div style="font-size:12px;color:#92400e;">เข้าถึงทุกฟังก์ชัน จัดการผู้ใช้ สิทธิ์เต็ม</div>
+            </div>
+            <div style="padding:12px;background:#dbeafe;border-radius:8px;">
+              <div style="font-weight:600;margin-bottom:4px;">👔 Manager (ผู้จัดการ)</div>
+              <div style="font-size:12px;color:#1e40af;">จัดการข้อมูลทั้งหมด ยกเว้นการจัดการผู้ใช้</div>
+            </div>
+            <div style="padding:12px;background:#d1fae5;border-radius:8px;">
+              <div style="font-weight:600;margin-bottom:4px;">📊 Accountant (นักบัญชี)</div>
+              <div style="font-size:12px;color:#065f46;">เพิ่ม/แก้ไขรายการ ดูรายงาน ไม่ลบได้</div>
+            </div>
+            <div style="padding:12px;background:#f1f5f9;border-radius:8px;">
+              <div style="font-weight:600;margin-bottom:4px;">👁️ Viewer (ผู้ดู)</div>
+              <div style="font-size:12px;color:#475569;">ดูข้อมูลอย่างเดียว ไม่เพิ่ม/แก้ไขได้</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CATEGORIES TAB -->
+      <div id="categoriesTab" style="display:none;">
+        <div class="filter-bar">
+          <div class="tabs" style="border:none;margin:0;">
+            <div class="tab-item active" onclick="setCatType('income')" id="catTabIncome">รายรับ</div>
+            <div class="tab-item" onclick="setCatType('expense')" id="catTabExpense">รายจ่าย</div>
+          </div>
+          <button class="btn btn-primary" onclick="openCatModal()" style="margin-left:auto;">➕ เพิ่มหมวดหมู่</button>
+        </div>
+
+        <div class="card">
+          <div class="table-wrapper">
+            <table class="table">
+              <thead><tr><th>ไอคอน</th><th>ชื่อ (ไทย)</th><th>ชื่อ (ลาว)</th><th>ชื่อ (อังกฤษ)</th><th>สี</th><th>จัดการ</th></tr></thead>
+              <tbody id="categoriesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- BACKUP TAB -->
+      <div id="backupTab" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">💾 สำรองข้อมูล</span></div>
+            <p style="font-size:13px;color:#64748b;margin-bottom:16px;">ส่งออกข้อมูลทั้งหมดเป็นไฟล์ JSON เพื่อสำรองข้อมูล</p>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <button class="btn btn-primary" onclick="backupTransactions()">📊 สำรองข้อมูลรายการ (Transactions)</button>
+              <button class="btn btn-outline" onclick="backupDebts()">🤝 สำรองข้อมูลหนี้ (Debts)</button>
+              <button class="btn btn-outline" onclick="backupAssets()">🏭 สำรองข้อมูลทรัพย์สิน (Assets)</button>
+              <button class="btn btn-outline" onclick="backupBudgets()">🎯 สำรองข้อมูลงบประมาณ (Budgets)</button>
+              <button class="btn btn-success" style="margin-top:8px;" onclick="backupAll()">📦 สำรองข้อมูลทั้งหมด (Full Backup)</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">📂 กู้คืนข้อมูล</span></div>
+            <p style="font-size:13px;color:#64748b;margin-bottom:16px;">นำเข้าข้อมูลจากไฟล์ JSON ที่สำรองไว้</p>
+            <div style="padding:20px;border:2px dashed #e2e8f0;border-radius:8px;text-align:center;margin-bottom:16px;">
+              <div style="font-size:32px;margin-bottom:8px;">📁</div>
+              <div style="font-size:13px;color:#64748b;margin-bottom:12px;">ลากไฟล์มาวาง หรือคลิกเพื่อเลือก</div>
+              <input type="file" id="restoreFile" accept=".json" style="display:none;" onchange="handleRestoreFile(event)">
+              <button class="btn btn-outline" onclick="document.getElementById('restoreFile').click()">เลือกไฟล์</button>
+            </div>
+            <div id="restorePreview" style="display:none;padding:12px;background:#f8fafc;border-radius:8px;font-size:13px;"></div>
+          </div>
+
+        </div>
+
+        <!-- Data Stats -->
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header"><span class="card-title">📈 สถิติข้อมูล</span></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;" id="dataStats">
+            <div style="text-align:center;padding:16px;background:#f8fafc;border-radius:8px;">
+              <div style="font-size:28px;font-weight:700;color:#6366f1;" id="statTx">—</div>
+              <div style="font-size:12px;color:#64748b;">รายการทั้งหมด</div>
+            </div>
+            <div style="text-align:center;padding:16px;background:#f8fafc;border-radius:8px;">
+              <div style="font-size:28px;font-weight:700;color:#10b981;" id="statDebts">—</div>
+              <div style="font-size:12px;color:#64748b;">รายการหนี้</div>
+            </div>
+            <div style="text-align:center;padding:16px;background:#f8fafc;border-radius:8px;">
+              <div style="font-size:28px;font-weight:700;color:#f59e0b;" id="statAssets">—</div>
+              <div style="font-size:12px;color:#64748b;">ทรัพย์สิน</div>
+            </div>
+            <div style="text-align:center;padding:16px;background:#f8fafc;border-radius:8px;">
+              <div style="font-size:28px;font-weight:700;color:#06b6d4;" id="statUsers">—</div>
+              <div style="font-size:12px;color:#64748b;">ผู้ใช้งาน</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- INVITE MODAL -->
+<div class="modal-overlay" id="inviteModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3 class="modal-title">เพิ่มผู้ใช้งานใหม่</h3>
+      <button class="modal-close" onclick="closeModal('inviteModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">ชื่อ-นามสกุล <span class="required">*</span></label>
+        <input type="text" class="form-control" id="fInviteName" placeholder="ชื่อผู้ใช้">
+      </div>
+      <div class="form-group">
+        <label class="form-label">อีเมล <span class="required">*</span></label>
+        <input type="email" class="form-control" id="fInviteEmail" placeholder="example@email.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">รหัสผ่านเริ่มต้น <span class="required">*</span></label>
+        <input type="text" class="form-control" id="fInvitePassword" placeholder="ตั้งรหัสผ่านอย่างน้อย 8 ตัว">
+      </div>
+      <div class="form-group">
+        <label class="form-label">สิทธิ์การใช้งาน</label>
+        <select class="form-control" id="fInviteRole">
+          <option value="viewer">👁️ Viewer - ดูข้อมูลอย่างเดียว</option>
+          <option value="accountant">📊 Accountant - บันทึกรายการได้</option>
+          <option value="manager">👔 Manager - จัดการข้อมูลได้</option>
+          <option value="admin">👑 Admin - สิทธิ์เต็ม</option>
+        </select>
+      </div>
+      <div style="padding:10px;background:#fef3c7;border-radius:8px;font-size:12px;color:#92400e;">
+        ⚠️ หมายเหตุ: ผู้ใช้ต้องสมัครบัญชีด้วยอีเมลนี้ที่หน้า Login หรือ Admin ต้องสร้างบัญชีใน Supabase Dashboard
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('inviteModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="inviteUser()">➕ เพิ่มผู้ใช้</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT ROLE MODAL -->
+<div class="modal-overlay" id="editRoleModal">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header">
+      <h3 class="modal-title">แก้ไขสิทธิ์ผู้ใช้</h3>
+      <button class="modal-close" onclick="closeModal('editRoleModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editRoleUserId">
+      <p style="margin-bottom:12px;font-size:13px;color:#64748b;" id="editRoleUserName"></p>
+      <div class="form-group">
+        <label class="form-label">สิทธิ์การใช้งาน</label>
+        <select class="form-control" id="fEditRole">
+          <option value="viewer">👁️ Viewer</option>
+          <option value="accountant">📊 Accountant</option>
+          <option value="manager">👔 Manager</option>
+          <option value="admin">👑 Admin</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">สถานะ</label>
+        <select class="form-control" id="fEditActive">
+          <option value="true">✅ ใช้งานได้</option>
+          <option value="false">🚫 ระงับการใช้งาน</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('editRoleModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveRole()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORY MODAL -->
+<div class="modal-overlay" id="catModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="catModalTitle">เพิ่มหมวดหมู่</h3>
+      <button class="modal-close" onclick="closeModal('catModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="catEditId">
+      <input type="hidden" id="fCatType" value="income">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ชื่อ (ไทย) <span class="required">*</span></label>
+          <input type="text" class="form-control" id="fCatTh" placeholder="ชื่อภาษาไทย">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ชื่อ (ลาว)</label>
+          <input type="text" class="form-control" id="fCatLo" placeholder="ຊື່ພາສາລາວ">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ชื่อ (อังกฤษ)</label>
+        <input type="text" class="form-control" id="fCatEn" placeholder="English Name">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ไอคอน</label>
+          <input type="text" class="form-control" id="fCatIcon" placeholder="📁" maxlength="4">
+        </div>
+        <div class="form-group">
+          <label class="form-label">สี</label>
+          <input type="color" class="form-control" id="fCatColor" value="#6366f1" style="height:40px;padding:4px;">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('catModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveCat()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var allUsers = [];
+  var allCats = [];
+  var catTypeFilter = 'income';
+
+  checkAuth().then(function(session) {
+    if (!session) return;
+    if (!canAdmin()) {
+      showToast('คุณไม่มีสิทธิ์เข้าถึงหน้านี้', 'error');
+      setTimeout(function() { window.location.href = 'index.html'; }, 1500);
+      return;
+    }
+    initUI();
+    loadUsers();
+  });
+
+  function initUI() {
+    var p = APP.profile;
+    document.getElementById('userAvatar').textContent = (p.full_name || 'U').charAt(0).toUpperCase();
+    document.getElementById('userName').textContent = p.full_name || p.email;
+    document.getElementById('userRole').textContent = 'ผู้ดูแล';
+    if (window.innerWidth <= 768) document.querySelector('.menu-toggle').style.display = 'flex';
+  }
+
+  window.setAdminTab = function(tab) {
+    ['users','categories','backup'].forEach(function(t) {
+      document.getElementById('aTab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+      document.getElementById(t + 'Tab').style.display = t === tab ? '' : 'none';
+    });
+    if (tab === 'categories') loadCategories();
+    if (tab === 'backup') loadDataStats();
+  };
+
+  // ============================================
+  // USERS
+  // ============================================
+  async function loadUsers() {
+    var result = await supabase.from('profiles').select('*').order('created_at');
+    allUsers = result.data || [];
+    renderUsers();
+  }
+
+  function renderUsers() {
+    var tbody = document.getElementById('usersBody');
+    if (!allUsers.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#94a3b8;">ไม่มีข้อมูล</td></tr>';
+      return;
+    }
+
+    var roleMap = { admin: '👑 Admin', manager: '👔 Manager', accountant: '📊 Accountant', viewer: '👁️ Viewer' };
+    var langMap = { th: '🇹🇭 ไทย', lo: '🇱🇦 ລາວ', en: '🇬🇧 EN' };
+
+    tbody.innerHTML = allUsers.map(function(u) {
+      var isMe = u.id === APP.user.id;
+      return '<tr>' +
+        '<td><div style="display:flex;align-items:center;gap:10px;"><div style="width:32px;height:32px;border-radius:50%;background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;">' + (u.full_name || 'U').charAt(0).toUpperCase() + '</div>' + (u.full_name || '—') + (isMe ? ' <span class="badge badge-primary" style="font-size:10px;">คุณ</span>' : '') + '</div></td>' +
+        '<td style="font-size:13px;color:#64748b;">' + u.email + '</td>' +
+        '<td>' + (roleMap[u.role] || u.role) + '</td>' +
+        '<td>' + (langMap[u.language] || u.language || '—') + '</td>' +
+        '<td>' + (u.is_active ? '<span class="badge badge-success">ใช้งานได้</span>' : '<span class="badge badge-danger">ระงับ</span>') + '</td>' +
+        '<td style="font-size:12px;color:#94a3b8;">' + formatDate(u.created_at) + '</td>' +
+        '<td>' + (!isMe ? '<button class="btn btn-outline btn-sm" onclick="editRole(\'' + u.id + '\',\'' + u.full_name + '\',\'' + u.role + '\',' + u.is_active + ')">✏️ แก้ไขสิทธิ์</button>' : '—') + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  window.editRole = function(id, name, role, isActive) {
+    document.getElementById('editRoleUserId').value = id;
+    document.getElementById('editRoleUserName').textContent = 'ผู้ใช้: ' + name;
+    document.getElementById('fEditRole').value = role;
+    document.getElementById('fEditActive').value = String(isActive);
+    openModal('editRoleModal');
+  };
+
+  window.saveRole = async function() {
+    var id = document.getElementById('editRoleUserId').value;
+    var role = document.getElementById('fEditRole').value;
+    var isActive = document.getElementById('fEditActive').value === 'true';
+
+    var result = await supabase.from('profiles').update({ role: role, is_active: isActive }).eq('id', id);
+    if (result.error) { showToast('เกิดข้อผิดพลาด', 'error'); }
+    else { showToast('แก้ไขสิทธิ์สำเร็จ'); closeModal('editRoleModal'); loadUsers(); }
+  };
+
+  window.openInviteModal = function() {
+    document.getElementById('fInviteName').value = '';
+    document.getElementById('fInviteEmail').value = '';
+    document.getElementById('fInvitePassword').value = '';
+    document.getElementById('fInviteRole').value = 'viewer';
+    openModal('inviteModal');
+  };
+
+  window.inviteUser = async function() {
+    var name = document.getElementById('fInviteName').value.trim();
+    var email = document.getElementById('fInviteEmail').value.trim();
+    var password = document.getElementById('fInvitePassword').value;
+    var role = document.getElementById('fInviteRole').value;
+
+    if (!name || !email || !password) { showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); return; }
+    if (password.length < 8) { showToast('รหัสผ่านต้องมีอย่างน้อย 8 ตัว', 'error'); return; }
+
+    // Use admin signUp
+    var result = await supabase.auth.admin.createUser({
+      email: email,
+      password: password,
+      email_confirm: true,
+      user_metadata: { full_name: name }
+    });
+
+    if (result.error) {
+      showToast('เกิดข้อผิดพลาด: ' + result.error.message, 'error');
+      return;
+    }
+
+    // Update role
+    if (result.data && result.data.user) {
+      await supabase.from('profiles').update({ role: role, full_name: name }).eq('id', result.data.user.id);
+    }
+
+    showToast('เพิ่มผู้ใช้สำเร็จ');
+    closeModal('inviteModal');
+    loadUsers();
+  };
+
+  // ============================================
+  // CATEGORIES
+  // ============================================
+  async function loadCategories() {
+    var result = await supabase.from('categories').select('*').eq('type', catTypeFilter).order('name_th');
+    allCats = result.data || [];
+    renderCategories();
+  }
+
+  function renderCategories() {
+    var tbody = document.getElementById('categoriesBody');
+    if (!allCats.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#94a3b8;">ไม่มีหมวดหมู่</td></tr>';
+      return;
+    }
+    tbody.innerHTML = allCats.map(function(c) {
+      return '<tr>' +
+        '<td style="font-size:20px;">' + (c.icon || '📁') + '</td>' +
+        '<td>' + c.name_th + '</td>' +
+        '<td>' + (c.name_lo || '—') + '</td>' +
+        '<td>' + (c.name_en || '—') + '</td>' +
+        '<td><div style="width:24px;height:24px;border-radius:4px;background:' + (c.color || '#94a3b8') + ';"></div></td>' +
+        '<td><button class="btn btn-outline btn-sm" onclick="editCat(\'' + c.id + '\')">✏️</button> ' +
+          '<button class="btn btn-danger btn-sm" onclick="deleteCat(\'' + c.id + '\')">🗑️</button></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  window.setCatType = function(type) {
+    catTypeFilter = type;
+    document.getElementById('catTabIncome').classList.toggle('active', type === 'income');
+    document.getElementById('catTabExpense').classList.toggle('active', type === 'expense');
+    loadCategories();
+  };
+
+  window.openCatModal = function() {
+    document.getElementById('catEditId').value = '';
+    document.getElementById('catModalTitle').textContent = 'เพิ่มหมวดหมู่';
+    document.getElementById('fCatTh').value = '';
+    document.getElementById('fCatLo').value = '';
+    document.getElementById('fCatEn').value = '';
+    document.getElementById('fCatIcon').value = '📁';
+    document.getElementById('fCatColor').value = '#6366f1';
+    document.getElementById('fCatType').value = catTypeFilter;
+    openModal('catModal');
+  };
+
+  window.editCat = function(id) {
+    var c = allCats.find(function(x) { return x.id === id; });
+    if (!c) return;
+    document.getElementById('catEditId').value = c.id;
+    document.getElementById('catModalTitle').textContent = 'แก้ไขหมวดหมู่';
+    document.getElementById('fCatTh').value = c.name_th;
+    document.getElementById('fCatLo').value = c.name_lo || '';
+    document.getElementById('fCatEn').value = c.name_en || '';
+    document.getElementById('fCatIcon').value = c.icon || '📁';
+    document.getElementById('fCatColor').value = c.color || '#6366f1';
+    document.getElementById('fCatType').value = c.type;
+    openModal('catModal');
+  };
+
+  window.saveCat = async function() {
+    var nameTh = document.getElementById('fCatTh').value.trim();
+    if (!nameTh) { showToast('กรุณาระบุชื่อหมวดหมู่', 'error'); return; }
+
+    var data = {
+      name_th: nameTh,
+      name_lo: document.getElementById('fCatLo').value.trim() || null,
+      name_en: document.getElementById('fCatEn').value.trim() || null,
+      icon: document.getElementById('fCatIcon').value || '📁',
+      color: document.getElementById('fCatColor').value,
+      type: document.getElementById('fCatType').value
+    };
+
+    var editId = document.getElementById('catEditId').value;
+    var result;
+    if (editId) {
+      result = await supabase.from('categories').update(data).eq('id', editId);
+    } else {
+      data.created_by = APP.user.id;
+      result = await supabase.from('categories').insert([data]);
+    }
+
+    if (result.error) { showToast('เกิดข้อผิดพลาด', 'error'); }
+    else { showToast('บันทึกสำเร็จ'); closeModal('catModal'); loadCategories(); }
+  };
+
+  window.deleteCat = async function(id) {
+    if (!confirm('ลบหมวดหมู่นี้?')) return;
+    var result = await supabase.from('categories').delete().eq('id', id);
+    if (result.error) { showToast('ไม่สามารถลบได้: มีรายการอ้างอิงอยู่', 'error'); }
+    else { showToast('ลบสำเร็จ'); loadCategories(); }
+  };
+
+  // ============================================
+  // BACKUP / RESTORE
+  // ============================================
+  async function loadDataStats() {
+    var [tx, debts, assets, users] = await Promise.all([
+      supabase.from('transactions').select('id', { count: 'exact', head: true }),
+      supabase.from('debts').select('id', { count: 'exact', head: true }),
+      supabase.from('assets').select('id', { count: 'exact', head: true }),
+      supabase.from('profiles').select('id', { count: 'exact', head: true })
+    ]);
+    document.getElementById('statTx').textContent = tx.count || 0;
+    document.getElementById('statDebts').textContent = debts.count || 0;
+    document.getElementById('statAssets').textContent = assets.count || 0;
+    document.getElementById('statUsers').textContent = users.count || 0;
+  }
+
+  async function downloadJSON(data, filename) {
+    var json = JSON.stringify(data, null, 2);
+    var blob = new Blob(['\ufeff' + json], { type: 'application/json;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename + '_' + todayISO() + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  window.backupTransactions = async function() {
+    var result = await supabase.from('transactions').select('*').order('date');
+    await downloadJSON(result.data, 'backup_transactions');
+    showToast('สำรองข้อมูลรายการสำเร็จ');
+  };
+
+  window.backupDebts = async function() {
+    var result = await supabase.from('debts').select('*').order('created_at');
+    await downloadJSON(result.data, 'backup_debts');
+    showToast('สำรองข้อมูลหนี้สำเร็จ');
+  };
+
+  window.backupAssets = async function() {
+    var result = await supabase.from('assets').select('*').order('created_at');
+    await downloadJSON(result.data, 'backup_assets');
+    showToast('สำรองข้อมูลทรัพย์สินสำเร็จ');
+  };
+
+  window.backupBudgets = async function() {
+    var result = await supabase.from('budgets').select('*').order('created_at');
+    await downloadJSON(result.data, 'backup_budgets');
+    showToast('สำรองข้อมูลงบประมาณสำเร็จ');
+  };
+
+  window.backupAll = async function() {
+    var [tx, debts, assets, budgets, cats] = await Promise.all([
+      supabase.from('transactions').select('*'),
+      supabase.from('debts').select('*'),
+      supabase.from('assets').select('*'),
+      supabase.from('budgets').select('*'),
+      supabase.from('categories').select('*')
+    ]);
+    var fullBackup = {
+      backup_date: new Date().toISOString(),
+      transactions: tx.data,
+      debts: debts.data,
+      assets: assets.data,
+      budgets: budgets.data,
+      categories: cats.data
+    };
+    await downloadJSON(fullBackup, 'full_backup');
+    showToast('สำรองข้อมูลทั้งหมดสำเร็จ');
+  };
+
+  window.handleRestoreFile = function(event) {
+    var file = event.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var data = JSON.parse(e.target.result);
+        var preview = document.getElementById('restorePreview');
+        preview.style.display = 'block';
+        var info = '<strong>ไฟล์: ' + file.name + '</strong><br>';
+        if (data.backup_date) info += 'วันที่สำรอง: ' + formatDate(data.backup_date) + '<br>';
+        if (data.transactions) info += 'รายการ: ' + data.transactions.length + ' รายการ<br>';
+        if (data.debts) info += 'หนี้: ' + data.debts.length + ' รายการ<br>';
+        if (data.assets) info += 'ทรัพย์สิน: ' + data.assets.length + ' รายการ<br>';
+        info += '<br><button class="btn btn-warning btn-sm" onclick="confirmRestore()">⚠️ กู้คืนข้อมูล (จะเขียนทับข้อมูลเดิม)</button>';
+        preview.innerHTML = info;
+        window._restoreData = data;
+      } catch(err) {
+        showToast('ไฟล์ไม่ถูกต้อง', 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  window.confirmRestore = async function() {
+    var data = window._restoreData;
+    if (!data) return;
+    if (!confirm('ยืนยันการกู้คืนข้อมูล? ข้อมูลที่มีอยู่จะถูกเพิ่ม (ไม่ลบข้อมูลเดิม)')) return;
+
+    var promises = [];
+    if (data.transactions && data.transactions.length > 0) {
+      promises.push(supabase.from('transactions').upsert(data.transactions, { onConflict: 'id' }));
+    }
+    if (data.debts && data.debts.length > 0) {
+      promises.push(supabase.from('debts').upsert(data.debts, { onConflict: 'id' }));
+    }
+    if (data.assets && data.assets.length > 0) {
+      promises.push(supabase.from('assets').upsert(data.assets, { onConflict: 'id' }));
+    }
+
+    await Promise.all(promises);
+    showToast('กู้คืนข้อมูลสำเร็จ');
+    loadDataStats();
+  };
+
+  window.toggleSidebar = function() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
+  };
+
+})();
+</script>
+</body>
+</html>
