@@ -230,6 +230,25 @@
     loadAssets();
   });
 
+  function applyLang() {
+    document.querySelectorAll('[data-i18n]').forEach(function(el) {
+      var key = el.getAttribute('data-i18n');
+      var val = APP.t(key);
+      if (val && val !== key) {
+        if (el.tagName === 'OPTION') el.textContent = val;
+        else el.textContent = val;
+      }
+    });
+    document.querySelectorAll('.lang-btn').forEach(function(b) { b.classList.remove('active'); });
+    var btnMap = {th:'langBtnTh', lo:'langBtnLo', en:'langBtnEn'};
+    if (btnMap[APP.lang]) {
+      var b = document.getElementById(btnMap[APP.lang]);
+      if (b) b.classList.add('active');
+    }
+    document.documentElement.lang = APP.lang;
+  }
+
+
   function initUI() {
     var p = APP.profile;
     if (!p) return;
@@ -579,23 +598,6 @@
   };
 
 
-  function applyLang() {
-    document.querySelectorAll('[data-i18n]').forEach(function(el) {
-      var key = el.getAttribute('data-i18n');
-      var val = APP.t(key);
-      if (val && val !== key) {
-        if (el.tagName === 'OPTION') el.textContent = val;
-        else el.textContent = val;
-      }
-    });
-    document.querySelectorAll('.lang-btn').forEach(function(b) { b.classList.remove('active'); });
-    var btnMap = {th:'langBtnTh', lo:'langBtnLo', en:'langBtnEn'};
-    if (btnMap[APP.lang]) {
-      var b = document.getElementById(btnMap[APP.lang]);
-      if (b) b.classList.add('active');
-    }
-    document.documentElement.lang = APP.lang;
-  }
 
 })();
 </script>
