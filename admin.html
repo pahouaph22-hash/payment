@@ -203,8 +203,8 @@
           <option value="admin">👑 Admin - สิทธิ์เต็ม</option>
         </select>
       </div>
-      <div style="padding:10px;background:#fef3c7;border-radius:8px;font-size:12px;color:#92400e;">
-        ⚠️ หมายเหตุ: ผู้ใช้ต้องสมัครบัญชีด้วยอีเมลนี้ที่หน้า Login หรือ Admin ต้องสร้างบัญชีใน Supabase Dashboard
+      <div style="padding:10px;background:#d1fae5;border-radius:8px;font-size:12px;color:#065f46;">
+        ✅ ระบบจะสร้างบัญชีให้อัตโนมัติ ผู้ใช้สามารถ Login ได้ทันทีด้วยอีเมลและรหัสผ่านที่กำหนด
       </div>
     </div>
     <div class="modal-footer">
@@ -372,9 +372,8 @@
     var role = document.getElementById('fEditRole').value;
     var isActive = document.getElementById('fEditActive').value === 'true';
 
-    var result = await supabase.from('profiles').update({ role: role, is_active: isActive }).eq('id', id);
-    if (result.error) { showToast('เกิดข้อผิดพลาด', 'error'); }
-    else { showToast('แก้ไขสิทธิ์สำเร็จ'); closeModal('editRoleModal'); loadUsers(); }
+    var result = await callEdge('update_user', { user_id: id, role: role, is_active: isActive });
+    if (result) { showToast('แก้ไขสิทธิ์สำเร็จ ✅'); closeModal('editRoleModal'); loadUsers(); }
   };
 
   window.openInviteModal = function() {
@@ -385,6 +384,27 @@
     openModal('inviteModal');
   };
 
+  // Edge Function URL
+  var EDGE_URL = SUPABASE_URL.replace('.supabase.co', '.functions.supabase.co') + '/manage-users';
+
+  async function callEdge(action, payload) {
+    var session = (await supabase.auth.getSession()).data.session;
+    if (!session) { showToast('กรุณา Login ก่อน', 'error'); return null; }
+    try {
+      var res = await fetch(EDGE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
+        body: JSON.stringify(Object.assign({ action: action }, payload))
+      });
+      var data = await res.json();
+      if (!res.ok || data.error) { showToast('เกิดข้อผิดพลาด: ' + (data.error || res.statusText), 'error'); return null; }
+      return data;
+    } catch(e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); return null; }
+  }
+
   window.inviteUser = async function() {
     var name = document.getElementById('fInviteName').value.trim();
     var email = document.getElementById('fInviteEmail').value.trim();
@@ -394,27 +414,18 @@
     if (!name || !email || !password) { showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); return; }
     if (password.length < 8) { showToast('รหัสผ่านต้องมีอย่างน้อย 8 ตัว', 'error'); return; }
 
-    // Use admin signUp
-    var result = await supabase.auth.admin.createUser({
-      email: email,
-      password: password,
-      email_confirm: true,
-      user_metadata: { full_name: name }
-    });
+    var btn = document.querySelector('#inviteModal .btn-primary');
+    btn.disabled = true; btn.textContent = 'กำลังสร้าง...';
 
-    if (result.error) {
-      showToast('เกิดข้อผิดพลาด: ' + result.error.message, 'error');
-      return;
+    var result = await callEdge('create_user', { email: email, password: password, full_name: name, role: role });
+
+    btn.disabled = false; btn.innerHTML = '&#x2795; เพิ่มผู้ใช้';
+
+    if (result) {
+      showToast('เพิ่มผู้ใช้สำเร็จ ✅');
+      closeModal('inviteModal');
+      loadUsers();
     }
-
-    // Update role
-    if (result.data && result.data.user) {
-      await supabase.from('profiles').update({ role: role, full_name: name }).eq('id', result.data.user.id);
-    }
-
-    showToast('เพิ่มผู้ใช้สำเร็จ');
-    closeModal('inviteModal');
-    loadUsers();
   };
 
   // ============================================
@@ -627,7 +638,20 @@
     loadDataStats();
   };
 
-  window.toggleSidebar = function() {
+  window.resetPassword = async function(userId, userName) {
+    var newPass = prompt('รหัสผ่านใหม่สำหรับ "' + userName + '" (อย่างน้อย 8 ตัว):');
+    if (!newPass || newPass.length < 8) { showToast('รหัสผ่านต้องมีอย่างน้อย 8 ตัว', 'error'); return; }
+    var result = await callEdge('reset_password', { user_id: userId, new_password: newPass });
+    if (result) showToast('เปลี่ยนรหัสผ่านสำเร็จ ✅');
+  };
+
+  window.deleteUser = async function(userId, userName) {
+    if (!confirm('ลบผู้ใช้ "' + userName + '" ออกจากระบบ?\nไม่สามารถกู้คืนได้!')) return;
+    var result = await callEdge('delete_user', { user_id: userId });
+    if (result) { showToast('ลบผู้ใช้สำเร็จ'); loadUsers(); }
+  };
+
+    window.toggleSidebar = function() {
     document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('sidebarOverlay').classList.toggle('active');
   };
