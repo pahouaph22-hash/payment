@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>รายรับ-รายจ่าย</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="supabase-config.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="logo">💼</span>
+      <div><div class="brand-name">ระบบบริหารการเงิน</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item"><span class="nav-icon">📊</span><span>แดชบอร์ด</span></a>
+      <a href="transactions.html" class="nav-item active"><span class="nav-icon">💰</span><span>รายรับ-รายจ่าย</span></a>
+      <a href="reports.html" class="nav-item"><span class="nav-icon">📈</span><span>รายงาน</span></a>
+      <a href="cashflow.html" class="nav-item"><span class="nav-icon">💧</span><span>กระแสเงินสด</span></a>
+      <a href="budget.html" class="nav-item"><span class="nav-icon">🎯</span><span>งบประมาณ</span></a>
+      <a href="debts.html" class="nav-item"><span class="nav-icon">🤝</span><span>หนี้/ลูกหนี้</span></a>
+      <a href="assets.html" class="nav-item"><span class="nav-icon">🏭</span><span>ทรัพย์สิน</span></a>
+      <a href="admin.html" class="nav-item admin-only"><span class="nav-icon">⚙️</span><span>ผู้ดูแลระบบ</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div><div class="user-name" id="userName">—</div><div class="user-role" id="userRole">—</div></div>
+      </div>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">🚪 ออกจากระบบ</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <button class="menu-toggle" onclick="toggleSidebar()" style="display:none;">☰</button>
+      <h1 class="page-title" id="pageTitle">รายรับ-รายจ่าย</h1>
+      <div class="header-actions">
+        <div class="lang-switcher">
+          <button class="lang-btn active" id="langBtnTh" onclick="switchLang('th')">ไทย</button>
+          <button class="lang-btn" id="langBtnLo" onclick="switchLang('lo')">ລາວ</button>
+          <button class="lang-btn" id="langBtnEn" onclick="switchLang('en')">EN</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Tabs: Income / Expense / All -->
+      <div class="tabs">
+        <div class="tab-item active" onclick="setTab('all')" id="tabAll">ทั้งหมด</div>
+        <div class="tab-item" onclick="setTab('income')" id="tabIncome">รายรับ</div>
+        <div class="tab-item" onclick="setTab('expense')" id="tabExpense">รายจ่าย</div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="form-control" id="searchInput" placeholder="ค้นหารายการ..." oninput="filterTransactions()">
+        </div>
+        <input type="date" class="form-control" id="filterDateFrom" style="max-width:140px;" onchange="loadTransactions()">
+        <input type="date" class="form-control" id="filterDateTo" style="max-width:140px;" onchange="loadTransactions()">
+        <select class="form-control" id="filterCategory" style="max-width:160px;" onchange="loadTransactions()">
+          <option value="">ทุกหมวดหมู่</option>
+        </select>
+        <select class="form-control" id="filterPayment" style="max-width:140px;" onchange="loadTransactions()">
+          <option value="">ทุกวิธีชำระ</option>
+          <option value="cash">เงินสด</option>
+          <option value="bank_transfer">โอนเงิน</option>
+          <option value="credit_card">บัตรเครดิต</option>
+          <option value="check">เช็ค</option>
+          <option value="other">อื่น ๆ</option>
+        </select>
+        <button class="btn btn-primary" onclick="openAddModal()">➕ เพิ่มรายการ</button>
+        <div style="display:flex;gap:6px;margin-left:auto;">
+          <button class="btn btn-outline btn-sm" onclick="doExportExcel()">📊 Excel</button>
+          <button class="btn btn-outline btn-sm" onclick="doExportPDF()">📄 PDF</button>
+        </div>
+      </div>
+
+      <!-- Summary Row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;">
+        <div class="card" style="padding:16px;text-align:center;">
+          <div style="font-size:12px;color:#64748b;margin-bottom:4px;">รายรับ</div>
+          <div class="text-income" style="font-size:20px;font-weight:700;" id="sumIncome">฿0</div>
+        </div>
+        <div class="card" style="padding:16px;text-align:center;">
+          <div style="font-size:12px;color:#64748b;margin-bottom:4px;">รายจ่าย</div>
+          <div class="text-expense" style="font-size:20px;font-weight:700;" id="sumExpense">฿0</div>
+        </div>
+        <div class="card" style="padding:16px;text-align:center;">
+          <div style="font-size:12px;color:#64748b;margin-bottom:4px;">กำไร/ขาดทุน</div>
+          <div style="font-size:20px;font-weight:700;" id="sumProfit">฿0</div>
+        </div>
+      </div>
+
+      <!-- Transactions Table -->
+      <div class="card" id="tableSection">
+        <div class="table-wrapper">
+          <table class="table" id="txTable">
+            <thead>
+              <tr>
+                <th>วันที่</th>
+                <th>ประเภท</th>
+                <th>หมวดหมู่</th>
+                <th>รายละเอียด</th>
+                <th>วิธีชำระ</th>
+                <th class="text-right">จำนวน</th>
+                <th>สถานะ</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="txBody">
+              <tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8;">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0 0;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:12px;color:#64748b;" id="paginationInfo"></div>
+          <div style="display:flex;gap:6px;" id="paginationBtns"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="txModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modalTitle">เพิ่มรายการ</h3>
+      <button class="modal-close" onclick="closeModal('txModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+
+      <!-- Type Toggle -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="btn btn-success" id="btnTypeIncome" onclick="setType('income')" style="flex:1;justify-content:center;">
+          💚 รายรับ
+        </button>
+        <button class="btn btn-outline" id="btnTypeExpense" onclick="setType('expense')" style="flex:1;justify-content:center;">
+          ❤️ รายจ่าย
+        </button>
+      </div>
+      <input type="hidden" id="fType" value="income">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">จำนวนเงิน <span class="required">*</span></label>
+          <input type="number" class="form-control" id="fAmount" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่ <span class="required">*</span></label>
+          <input type="date" class="form-control" id="fDate">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">หมวดหมู่</label>
+        <select class="form-control" id="fCategory">
+          <option value="">— เลือกหมวดหมู่ —</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">รายละเอียด</label>
+        <input type="text" class="form-control" id="fDescription" placeholder="รายละเอียดรายการ">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วิธีชำระเงิน</label>
+          <select class="form-control" id="fPayment">
+            <option value="cash">เงินสด</option>
+            <option value="bank_transfer">โอนเงิน</option>
+            <option value="credit_card">บัตรเครดิต</option>
+            <option value="check">เช็ค</option>
+            <option value="other">อื่น ๆ</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">สถานะ</label>
+          <select class="form-control" id="fStatus">
+            <option value="completed">เสร็จสิ้น</option>
+            <option value="pending">รอดำเนินการ</option>
+            <option value="cancelled">ยกเลิก</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">เลขอ้างอิง</label>
+        <input type="text" class="form-control" id="fRef" placeholder="เลขที่ใบเสร็จ / เลขอ้างอิง">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <textarea class="form-control" id="fNote" rows="2" placeholder="หมายเหตุเพิ่มเติม"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('txModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveTransaction()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <h3 class="modal-title">ยืนยันการลบ</h3>
+      <button class="modal-close" onclick="closeModal('deleteModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:#475569;">คุณต้องการลบรายการนี้ใช่หรือไม่? ไม่สามารถกู้คืนได้</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('deleteModal')">ยกเลิก</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">🗑️ ลบ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var allData = [];
+  var filtered = [];
+  var currentPage = 1;
+  var pageSize = 20;
+  var currentTab = 'all';
+  var deleteId = null;
+  var categories = [];
+
+  // ============================================
+  // INIT
+  // ============================================
+  checkAuth().then(function(session) {
+    if (!session) return;
+    initUI();
+    loadCategories();
+    setDefaultDates();
+    loadTransactions();
+  });
+
+  function initUI() {
+    var p = APP.profile;
+    if (!p) return;
+    document.getElementById('userAvatar').textContent = (p.full_name || 'U').charAt(0).toUpperCase();
+    document.getElementById('userName').textContent = p.full_name || p.email;
+    var roleMap = { admin: 'ผู้ดูแล', manager: 'ผู้จัดการ', accountant: 'นักบัญชี', viewer: 'ผู้ดู' };
+    document.getElementById('userRole').textContent = roleMap[p.role] || p.role;
+    if (p.role !== 'admin') document.querySelectorAll('.admin-only').forEach(function(el) { el.style.display = 'none'; });
+    if (!canEdit()) {
+      var addBtn = document.querySelector('.filter-bar .btn-primary');
+      if (addBtn) addBtn.style.display = 'none';
+    }
+    if (window.innerWidth <= 768) document.querySelector('.menu-toggle').style.display = 'flex';
+  }
+
+  function setDefaultDates() {
+    document.getElementById('filterDateFrom').value = monthStart();
+    document.getElementById('filterDateTo').value = monthEnd();
+    document.getElementById('fDate').value = todayISO();
+  }
+
+  async function loadCategories() {
+    var result = await supabase.from('categories').select('*').order('name_th');
+    categories = result.data || [];
+    populateCategorySelects();
+  }
+
+  function populateCategorySelects() {
+    var opts = '<option value="">— เลือกหมวดหมู่ —</option>';
+    var filterOpts = '<option value="">ทุกหมวดหมู่</option>';
+    var typeFilter = currentTab === 'all' ? null : currentTab;
+
+    categories.forEach(function(c) {
+      if (typeFilter && c.type !== typeFilter) return;
+      var name = APP.lang === 'lo' ? (c.name_lo || c.name_th) : APP.lang === 'en' ? (c.name_en || c.name_th) : c.name_th;
+      opts += '<option value="' + c.id + '">' + c.icon + ' ' + name + '</option>';
+      filterOpts += '<option value="' + c.id + '">' + c.icon + ' ' + name + '</option>';
+    });
+
+    document.getElementById('fCategory').innerHTML = opts;
+    document.getElementById('filterCategory').innerHTML = filterOpts;
+  }
+
+  // ============================================
+  // TABS
+  // ============================================
+  window.setTab = function(tab) {
+    currentTab = tab;
+    ['all', 'income', 'expense'].forEach(function(t) {
+      document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+    });
+    populateCategorySelects();
+    loadTransactions();
+  };
+
+  // ============================================
+  // LOAD DATA
+  // ============================================
+  window.loadTransactions = async function() {
+    var tbody = document.getElementById('txBody');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;"><div class="loading-spinner"></div></td></tr>';
+
+    var q = supabase
+      .from('transactions')
+      .select('*, categories(id, name_th, name_lo, name_en, icon, color)')
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    var from = document.getElementById('filterDateFrom').value;
+    var to = document.getElementById('filterDateTo').value;
+    if (from) q = q.gte('date', from);
+    if (to) q = q.lte('date', to);
+    if (currentTab !== 'all') q = q.eq('type', currentTab);
+
+    var cat = document.getElementById('filterCategory').value;
+    if (cat) q = q.eq('category_id', cat);
+
+    var payment = document.getElementById('filterPayment').value;
+    if (payment) q = q.eq('payment_method', payment);
+
+    var result = await q;
+    allData = result.data || [];
+    filterTransactions();
+  };
+
+  window.filterTransactions = function() {
+    var search = document.getElementById('searchInput').value.toLowerCase();
+    filtered = allData.filter(function(t) {
+      if (!search) return true;
+      var desc = (t.description || '').toLowerCase();
+      var note = (t.note || '').toLowerCase();
+      var ref = (t.reference_no || '').toLowerCase();
+      var cat = t.categories ? (t.categories.name_th || '').toLowerCase() : '';
+      return desc.includes(search) || note.includes(search) || ref.includes(search) || cat.includes(search);
+    });
+    currentPage = 1;
+    renderTable();
+  };
+
+  function renderTable() {
+    var tbody = document.getElementById('txBody');
+    var totalIncome = 0, totalExpense = 0;
+
+    filtered.forEach(function(t) {
+      if (t.status === 'completed') {
+        if (t.type === 'income') totalIncome += Number(t.amount);
+        else totalExpense += Number(t.amount);
+      }
+    });
+
+    var profit = totalIncome - totalExpense;
+    document.getElementById('sumIncome').textContent = '฿' + formatMoney(totalIncome);
+    document.getElementById('sumExpense').textContent = '฿' + formatMoney(totalExpense);
+    var profitEl = document.getElementById('sumProfit');
+    profitEl.textContent = (profit >= 0 ? '' : '-') + '฿' + formatMoney(Math.abs(profit));
+    profitEl.className = profit >= 0 ? 'text-income' : 'text-expense';
+    profitEl.style.fontSize = '20px';
+    profitEl.style.fontWeight = '700';
+
+    var total = filtered.length;
+    var start = (currentPage - 1) * pageSize;
+    var pageData = filtered.slice(start, start + pageSize);
+
+    if (pageData.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8;">ไม่มีข้อมูล</td></tr>';
+    } else {
+      var statusMap = { completed: '<span class="badge badge-success">เสร็จสิ้น</span>', pending: '<span class="badge badge-warning">รอดำเนินการ</span>', cancelled: '<span class="badge badge-gray">ยกเลิก</span>' };
+      var payMap = { cash: 'เงินสด', bank_transfer: 'โอนเงิน', credit_card: 'บัตรเครดิต', check: 'เช็ค', other: 'อื่น ๆ' };
+
+      tbody.innerHTML = pageData.map(function(t) {
+        var catName = t.categories ? (APP.lang === 'lo' ? (t.categories.name_lo || t.categories.name_th) : APP.lang === 'en' ? (t.categories.name_en || t.categories.name_th) : t.categories.name_th) : '—';
+        var catIcon = (t.categories && t.categories.icon) || '';
+        var isIncome = t.type === 'income';
+        var canEditRow = canEdit();
+
+        return '<tr>' +
+          '<td style="white-space:nowrap;">' + formatDate(t.date) + '</td>' +
+          '<td>' + (isIncome ? '<span class="badge badge-success">💚 รายรับ</span>' : '<span class="badge badge-danger">❤️ รายจ่าย</span>') + '</td>' +
+          '<td>' + catIcon + ' ' + catName + '</td>' +
+          '<td>' + (t.description || '—') + (t.reference_no ? '<br><small style="color:#94a3b8;">' + t.reference_no + '</small>' : '') + '</td>' +
+          '<td>' + (payMap[t.payment_method] || t.payment_method || '—') + '</td>' +
+          '<td class="text-right ' + (isIncome ? 'text-income' : 'text-expense') + '" style="font-weight:600;">' +
+            (isIncome ? '+' : '-') + '฿' + formatMoney(t.amount) +
+          '</td>' +
+          '<td>' + (statusMap[t.status] || t.status) + '</td>' +
+          '<td>' + (canEditRow ?
+            '<button class="btn btn-outline btn-icon btn-sm" onclick="editTransaction(\'' + t.id + '\')" title="แก้ไข">✏️</button> ' +
+            '<button class="btn btn-danger btn-icon btn-sm" onclick="deleteTransaction(\'' + t.id + '\')" title="ลบ">🗑️</button>'
+            : '—') + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    // Pagination
+    var totalPages = Math.ceil(total / pageSize);
+    document.getElementById('paginationInfo').textContent = 'แสดง ' + (start + 1) + '–' + Math.min(start + pageSize, total) + ' จาก ' + total + ' รายการ';
+
+    var pBtns = '';
+    if (currentPage > 1) pBtns += '<button class="btn btn-outline btn-sm" onclick="goPage(' + (currentPage - 1) + ')">‹ ก่อนหน้า</button>';
+    for (var p = Math.max(1, currentPage - 2); p <= Math.min(totalPages, currentPage + 2); p++) {
+      pBtns += '<button class="btn ' + (p === currentPage ? 'btn-primary' : 'btn-outline') + ' btn-sm" onclick="goPage(' + p + ')">' + p + '</button>';
+    }
+    if (currentPage < totalPages) pBtns += '<button class="btn btn-outline btn-sm" onclick="goPage(' + (currentPage + 1) + ')">ถัดไป ›</button>';
+    document.getElementById('paginationBtns').innerHTML = pBtns;
+  }
+
+  window.goPage = function(p) { currentPage = p; renderTable(); };
+
+  // ============================================
+  // ADD/EDIT
+  // ============================================
+  window.openAddModal = function() {
+    document.getElementById('editId').value = '';
+    document.getElementById('modalTitle').textContent = 'เพิ่มรายการ';
+    document.getElementById('fAmount').value = '';
+    document.getElementById('fDate').value = todayISO();
+    document.getElementById('fDescription').value = '';
+    document.getElementById('fNote').value = '';
+    document.getElementById('fRef').value = '';
+    document.getElementById('fCategory').value = '';
+    document.getElementById('fPayment').value = 'cash';
+    document.getElementById('fStatus').value = 'completed';
+    setType('income');
+    openModal('txModal');
+  };
+
+  window.editTransaction = async function(id) {
+    var t = allData.find(function(x) { return x.id === id; });
+    if (!t) return;
+
+    document.getElementById('editId').value = t.id;
+    document.getElementById('modalTitle').textContent = 'แก้ไขรายการ';
+    document.getElementById('fAmount').value = t.amount;
+    document.getElementById('fDate').value = t.date;
+    document.getElementById('fDescription').value = t.description || '';
+    document.getElementById('fNote').value = t.note || '';
+    document.getElementById('fRef').value = t.reference_no || '';
+    document.getElementById('fCategory').value = t.category_id || '';
+    document.getElementById('fPayment').value = t.payment_method || 'cash';
+    document.getElementById('fStatus').value = t.status || 'completed';
+    setType(t.type);
+    openModal('txModal');
+  };
+
+  window.setType = function(type) {
+    document.getElementById('fType').value = type;
+    document.getElementById('btnTypeIncome').className = 'btn ' + (type === 'income' ? 'btn-success' : 'btn-outline') + ' ';
+    document.getElementById('btnTypeExpense').className = 'btn ' + (type === 'expense' ? 'btn-danger' : 'btn-outline') + ' ';
+    document.getElementById('btnTypeIncome').style.flex = '1';
+    document.getElementById('btnTypeExpense').style.flex = '1';
+    document.getElementById('btnTypeIncome').style.justifyContent = 'center';
+    document.getElementById('btnTypeExpense').style.justifyContent = 'center';
+  };
+
+  window.saveTransaction = async function() {
+    var amount = parseFloat(document.getElementById('fAmount').value);
+    var date = document.getElementById('fDate').value;
+
+    if (!amount || amount <= 0) { showToast('กรุณาระบุจำนวนเงิน', 'error'); return; }
+    if (!date) { showToast('กรุณาระบุวันที่', 'error'); return; }
+
+    var data = {
+      type: document.getElementById('fType').value,
+      amount: amount,
+      date: date,
+      category_id: document.getElementById('fCategory').value || null,
+      description: document.getElementById('fDescription').value.trim() || null,
+      note: document.getElementById('fNote').value.trim() || null,
+      reference_no: document.getElementById('fRef').value.trim() || null,
+      payment_method: document.getElementById('fPayment').value,
+      status: document.getElementById('fStatus').value,
+      updated_by: APP.user.id
+    };
+
+    var editId = document.getElementById('editId').value;
+    var result;
+
+    if (editId) {
+      result = await supabase.from('transactions').update(data).eq('id', editId);
+    } else {
+      data.created_by = APP.user.id;
+      result = await supabase.from('transactions').insert([data]);
+    }
+
+    if (result.error) {
+      showToast('เกิดข้อผิดพลาด: ' + result.error.message, 'error');
+    } else {
+      showToast(editId ? 'แก้ไขสำเร็จ' : 'บันทึกสำเร็จ');
+      closeModal('txModal');
+      loadTransactions();
+    }
+  };
+
+  // ============================================
+  // DELETE
+  // ============================================
+  window.deleteTransaction = function(id) {
+    deleteId = id;
+    openModal('deleteModal');
+  };
+
+  window.confirmDelete = async function() {
+    if (!deleteId) return;
+    var result = await supabase.from('transactions').delete().eq('id', deleteId);
+    if (result.error) {
+      showToast('เกิดข้อผิดพลาด', 'error');
+    } else {
+      showToast('ลบสำเร็จ');
+      closeModal('deleteModal');
+      loadTransactions();
+    }
+    deleteId = null;
+  };
+
+  // ============================================
+  // EXPORT
+  // ============================================
+  window.doExportExcel = function() {
+    var rows = filtered.map(function(t) {
+      return {
+        'วันที่': t.date,
+        'ประเภท': t.type === 'income' ? 'รายรับ' : 'รายจ่าย',
+        'หมวดหมู่': t.categories ? t.categories.name_th : '',
+        'รายละเอียด': t.description || '',
+        'วิธีชำระ': t.payment_method || '',
+        'จำนวน': Number(t.amount),
+        'สถานะ': t.status,
+        'หมายเหตุ': t.note || ''
+      };
+    });
+    exportToExcel(rows, 'transactions_' + todayISO());
+    showToast('ส่งออก Excel สำเร็จ');
+  };
+
+  window.doExportPDF = async function() {
+    await exportToPDF('tableSection', 'transactions_' + todayISO());
+    showToast('ส่งออก PDF สำเร็จ');
+  };
+
+  // ============================================
+  // LANG
+  // ============================================
+  window.switchLang = function(lang) {
+    APP.setLang(lang);
+    if (APP.profile) supabase.from('profiles').update({ language: lang }).eq('id', APP.profile.id);
+    ['th','lo','en'].forEach(function(l) {
+      document.getElementById('langBtn' + l.charAt(0).toUpperCase() + l.slice(1)).classList.toggle('active', l === lang);
+    });
+  };
+
+  window.toggleSidebar = function() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
+  };
+
+})();
+</script>
+</body>
+</html>

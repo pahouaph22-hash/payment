@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ทรัพย์สิน</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="supabase-config.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><span class="logo">💼</span><div><div class="brand-name">ระบบบริหารการเงิน</div></div></div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item"><span class="nav-icon">📊</span><span>แดชบอร์ด</span></a>
+      <a href="transactions.html" class="nav-item"><span class="nav-icon">💰</span><span>รายรับ-รายจ่าย</span></a>
+      <a href="reports.html" class="nav-item"><span class="nav-icon">📈</span><span>รายงาน</span></a>
+      <a href="cashflow.html" class="nav-item"><span class="nav-icon">💧</span><span>กระแสเงินสด</span></a>
+      <a href="budget.html" class="nav-item"><span class="nav-icon">🎯</span><span>งบประมาณ</span></a>
+      <a href="debts.html" class="nav-item"><span class="nav-icon">🤝</span><span>หนี้/ลูกหนี้</span></a>
+      <a href="assets.html" class="nav-item active"><span class="nav-icon">🏭</span><span>ทรัพย์สิน</span></a>
+      <a href="admin.html" class="nav-item admin-only"><span class="nav-icon">⚙️</span><span>ผู้ดูแลระบบ</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info"><div class="user-avatar" id="userAvatar">U</div><div><div class="user-name" id="userName">—</div><div class="user-role" id="userRole">—</div></div></div>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">🚪 ออกจากระบบ</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <button class="menu-toggle" onclick="toggleSidebar()" style="display:none;">☰</button>
+      <h1 class="page-title">ทรัพย์สิน</h1>
+      <div class="header-actions">
+        <button class="btn btn-primary" onclick="openAssetModal()">➕ เพิ่มทรัพย์สิน</button>
+        <button class="btn btn-outline btn-sm" onclick="exportExcel()">📊 Excel</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- KPI -->
+      <div class="kpi-grid" style="margin-bottom:20px;">
+        <div class="kpi-card"><div class="kpi-icon profit">🏭</div><div class="kpi-body"><div class="kpi-label">มูลค่าทรัพย์สินรวม</div><div class="kpi-value profit" id="aKpiTotal">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon income">💚</div><div class="kpi-body"><div class="kpi-label">มูลค่าปัจจุบัน</div><div class="kpi-value income" id="aKpiCurrent">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon expense">📉</div><div class="kpi-body"><div class="kpi-label">ค่าเสื่อมราคาสะสม</div><div class="kpi-value expense" id="aKpiDeprec">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon balance">📦</div><div class="kpi-body"><div class="kpi-label">จำนวนทรัพย์สิน</div><div class="kpi-value balance" id="aKpiCount">0</div></div></div>
+      </div>
+
+      <!-- Chart -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">มูลค่าทรัพย์สินตามประเภท</span></div>
+          <canvas id="assetChart" height="120"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">สถานะทรัพย์สิน</span></div>
+          <canvas id="statusChart" height="120"></canvas>
+        </div>
+      </div>
+
+      <!-- Filter + Tabs -->
+      <div class="tabs">
+        <div class="tab-item active" onclick="setAssetTab('all')" id="aTabAll">ทั้งหมด</div>
+        <div class="tab-item" onclick="setAssetTab('fixed')" id="aTabFixed">สินทรัพย์ถาวร</div>
+        <div class="tab-item" onclick="setAssetTab('current')" id="aTabCurrent">สินทรัพย์หมุนเวียน</div>
+        <div class="tab-item" onclick="setAssetTab('intangible')" id="aTabIntangible">สินทรัพย์ไม่มีตัวตน</div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="form-control" id="assetSearch" placeholder="ค้นหาทรัพย์สิน..." oninput="filterAssets()">
+        </div>
+        <select class="form-control" id="assetStatus" style="max-width:160px;" onchange="filterAssets()">
+          <option value="">ทุกสถานะ</option>
+          <option value="active">ใช้งานอยู่</option>
+          <option value="maintenance">ซ่อมบำรุง</option>
+          <option value="disposed">จำหน่ายแล้ว</option>
+        </select>
+      </div>
+
+      <!-- Table -->
+      <div class="card">
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ชื่อทรัพย์สิน</th>
+                <th>ประเภท</th>
+                <th>วันที่ซื้อ</th>
+                <th class="text-right">ราคาซื้อ</th>
+                <th class="text-right">มูลค่าปัจจุบัน</th>
+                <th class="text-right">เสื่อมราคา/ปี</th>
+                <th>สถานที่</th>
+                <th>สถานะ</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="assetBody">
+              <tr><td colspan="9" style="text-align:center;padding:40px;color:#94a3b8;">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ASSET MODAL -->
+<div class="modal-overlay" id="assetModal">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="assetModalTitle">เพิ่มทรัพย์สิน</h3>
+      <button class="modal-close" onclick="closeModal('assetModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="assetEditId">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ชื่อทรัพย์สิน <span class="required">*</span></label>
+          <input type="text" class="form-control" id="fAssetName" placeholder="เช่น รถบรรทุก, เครื่องจักร">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ประเภท <span class="required">*</span></label>
+          <select class="form-control" id="fAssetType">
+            <option value="fixed">🏭 สินทรัพย์ถาวร</option>
+            <option value="current">💧 สินทรัพย์หมุนเวียน</option>
+            <option value="intangible">💡 สินทรัพย์ไม่มีตัวตน</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ราคาซื้อ <span class="required">*</span></label>
+          <input type="number" class="form-control" id="fAssetPrice" placeholder="0.00" min="0" step="0.01" oninput="calcDepreciation()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่ซื้อ <span class="required">*</span></label>
+          <input type="date" class="form-control" id="fAssetDate" onchange="calcDepreciation()">
+        </div>
+      </div>
+
+      <div style="padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px;">⚙️ การคำนวณค่าเสื่อมราคา</div>
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">วิธีคำนวณ</label>
+            <select class="form-control" id="fAssetDeprMethod" onchange="calcDepreciation()">
+              <option value="straight_line">เส้นตรง (Straight Line)</option>
+              <option value="declining_balance">ยอดคงเหลือลดลง (Declining Balance)</option>
+              <option value="none">ไม่คิดค่าเสื่อม</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">อายุการใช้งาน (ปี)</label>
+            <input type="number" class="form-control" id="fAssetLife" placeholder="5" min="1" value="5" oninput="calcDepreciation()">
+          </div>
+        </div>
+        <div style="margin-top:10px;padding:8px;background:#fff;border-radius:6px;font-size:13px;" id="deprecCalc">
+          <span style="color:#64748b;">ค่าเสื่อมราคา/ปี: </span><span id="deprecPerYear" style="font-weight:600;color:#ef4444;">—</span>
+          &nbsp;|&nbsp;
+          <span style="color:#64748b;">มูลค่าปัจจุบันโดยประมาณ: </span><span id="deprecCurrentVal" style="font-weight:600;color:#10b981;">—</span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">สถานที่ / ที่ตั้ง</label>
+          <input type="text" class="form-control" id="fAssetLocation" placeholder="สาขา / แผนก">
+        </div>
+        <div class="form-group">
+          <label class="form-label">หมายเลขซีเรียล</label>
+          <input type="text" class="form-control" id="fAssetSerial" placeholder="S/N หรือรหัสทรัพย์สิน">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">สถานะ</label>
+        <select class="form-control" id="fAssetStatus">
+          <option value="active">✅ ใช้งานอยู่</option>
+          <option value="maintenance">🔧 ซ่อมบำรุง</option>
+          <option value="disposed">📦 จำหน่ายแล้ว</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <textarea class="form-control" id="fAssetNote" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('assetModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveAsset()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="detailTitle">รายละเอียดทรัพย์สิน</h3>
+      <button class="modal-close" onclick="closeModal('detailModal')">✕</button>
+    </div>
+    <div class="modal-body" id="detailBody"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var allAssets = [];
+  var currentTab = 'all';
+  var assetChartInst = null;
+  var statusChartInst = null;
+
+  checkAuth().then(function(session) {
+    if (!session) return;
+    initUI();
+    document.getElementById('fAssetDate').value = todayISO();
+    loadAssets();
+  });
+
+  function initUI() {
+    var p = APP.profile;
+    if (!p) return;
+    document.getElementById('userAvatar').textContent = (p.full_name || 'U').charAt(0).toUpperCase();
+    document.getElementById('userName').textContent = p.full_name || p.email;
+    if (p.role !== 'admin') document.querySelectorAll('.admin-only').forEach(function(el) { el.style.display = 'none'; });
+    if (window.innerWidth <= 768) document.querySelector('.menu-toggle').style.display = 'flex';
+  }
+
+  // ============================================
+  // DEPRECIATION CALC
+  // ============================================
+  function calcCurrentValue(asset) {
+    if (asset.depreciation_method === 'none' || !asset.useful_life_years) return Number(asset.purchase_price);
+    var yearsElapsed = (new Date() - new Date(asset.purchase_date)) / (1000 * 60 * 60 * 24 * 365);
+    var price = Number(asset.purchase_price);
+    var life = asset.useful_life_years;
+
+    if (asset.depreciation_method === 'straight_line') {
+      var annualDepr = price / life;
+      return Math.max(0, price - annualDepr * yearsElapsed);
+    } else if (asset.depreciation_method === 'declining_balance') {
+      var rate = 2 / life;
+      return Math.max(0, price * Math.pow(1 - rate, yearsElapsed));
+    }
+    return price;
+  }
+
+  function calcAnnualDepr(price, life, method) {
+    if (!price || !life || method === 'none') return 0;
+    if (method === 'straight_line') return price / life;
+    if (method === 'declining_balance') return price * (2 / life);
+    return 0;
+  }
+
+  window.calcDepreciation = function() {
+    var price = parseFloat(document.getElementById('fAssetPrice').value) || 0;
+    var life = parseInt(document.getElementById('fAssetLife').value) || 1;
+    var method = document.getElementById('fAssetDeprMethod').value;
+    var purchaseDate = document.getElementById('fAssetDate').value;
+
+    var annualDepr = calcAnnualDepr(price, life, method);
+    document.getElementById('deprecPerYear').textContent = method === 'none' ? 'ไม่คิดค่าเสื่อม' : '฿' + formatMoney(annualDepr);
+
+    if (purchaseDate && method !== 'none') {
+      var mockAsset = { purchase_price: price, purchase_date: purchaseDate, depreciation_method: method, useful_life_years: life };
+      var currentVal = calcCurrentValue(mockAsset);
+      document.getElementById('deprecCurrentVal').textContent = '฿' + formatMoney(currentVal);
+    } else {
+      document.getElementById('deprecCurrentVal').textContent = '฿' + formatMoney(price);
+    }
+  };
+
+  // ============================================
+  // LOAD
+  // ============================================
+  async function loadAssets() {
+    var result = await supabase.from('assets').select('*').order('purchase_date', { ascending: false });
+    allAssets = (result.data || []).map(function(a) {
+      a._currentValue = calcCurrentValue(a);
+      a._deprAccum = Math.max(0, Number(a.purchase_price) - a._currentValue);
+      a._annualDepr = calcAnnualDepr(Number(a.purchase_price), a.useful_life_years, a.depreciation_method);
+      return a;
+    });
+    updateKPIs();
+    renderCharts();
+    filterAssets();
+  }
+
+  function updateKPIs() {
+    var total = 0, current = 0, deprec = 0;
+    allAssets.forEach(function(a) {
+      if (a.status !== 'disposed') {
+        total += Number(a.purchase_price);
+        current += a._currentValue;
+        deprec += a._deprAccum;
+      }
+    });
+    document.getElementById('aKpiTotal').textContent = '฿' + formatMoney(total);
+    document.getElementById('aKpiCurrent').textContent = '฿' + formatMoney(current);
+    document.getElementById('aKpiDeprec').textContent = '฿' + formatMoney(deprec);
+    document.getElementById('aKpiCount').textContent = allAssets.filter(function(a) { return a.status !== 'disposed'; }).length;
+  }
+
+  function renderCharts() {
+    var typeMap = { fixed: { label: 'ถาวร', value: 0 }, current: { label: 'หมุนเวียน', value: 0 }, intangible: { label: 'ไม่มีตัวตน', value: 0 } };
+    var statusMap = { active: { label: 'ใช้งาน', value: 0 }, maintenance: { label: 'ซ่อมบำรุง', value: 0 }, disposed: { label: 'จำหน่าย', value: 0 } };
+
+    allAssets.forEach(function(a) {
+      if (typeMap[a.type]) typeMap[a.type].value += Number(a.purchase_price);
+      if (statusMap[a.status]) statusMap[a.status].value++;
+    });
+
+    if (assetChartInst) assetChartInst.destroy();
+    assetChartInst = new Chart(document.getElementById('assetChart'), {
+      type: 'bar',
+      data: {
+        labels: Object.values(typeMap).map(function(t) { return t.label; }),
+        datasets: [{ data: Object.values(typeMap).map(function(t) { return t.value; }), backgroundColor: ['#6366f1','#10b981','#f59e0b'], borderRadius: 6 }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '฿' + formatMoney(v,0); } } } } }
+    });
+
+    if (statusChartInst) statusChartInst.destroy();
+    statusChartInst = new Chart(document.getElementById('statusChart'), {
+      type: 'doughnut',
+      data: {
+        labels: Object.values(statusMap).map(function(s) { return s.label; }),
+        datasets: [{ data: Object.values(statusMap).map(function(s) { return s.value; }), backgroundColor: ['#10b981','#f59e0b','#94a3b8'] }]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+  }
+
+  window.setAssetTab = function(tab) {
+    currentTab = tab;
+    ['all','fixed','current','intangible'].forEach(function(t) {
+      var id = 'aTab' + t.charAt(0).toUpperCase() + t.slice(1);
+      document.getElementById(id).classList.toggle('active', t === tab);
+    });
+    filterAssets();
+  };
+
+  window.filterAssets = function() {
+    var search = document.getElementById('assetSearch').value.toLowerCase();
+    var statusFilter = document.getElementById('assetStatus').value;
+
+    var filtered = allAssets.filter(function(a) {
+      if (currentTab !== 'all' && a.type !== currentTab) return false;
+      if (statusFilter && a.status !== statusFilter) return false;
+      if (search) {
+        var name = (a.name || '').toLowerCase();
+        var serial = (a.serial_number || '').toLowerCase();
+        var loc = (a.location || '').toLowerCase();
+        if (!name.includes(search) && !serial.includes(search) && !loc.includes(search)) return false;
+      }
+      return true;
+    });
+
+    renderTable(filtered);
+  };
+
+  function renderTable(data) {
+    var tbody = document.getElementById('assetBody');
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:#94a3b8;">ไม่มีข้อมูล</td></tr>';
+      return;
+    }
+
+    var typeMap = { fixed: '🏭 ถาวร', current: '💧 หมุนเวียน', intangible: '💡 ไม่มีตัวตน' };
+    var statusMap = {
+      active: '<span class="badge badge-success">ใช้งาน</span>',
+      maintenance: '<span class="badge badge-warning">ซ่อมบำรุง</span>',
+      disposed: '<span class="badge badge-gray">จำหน่ายแล้ว</span>'
+    };
+
+    tbody.innerHTML = data.map(function(a) {
+      var pctRemain = Number(a.purchase_price) > 0 ? (a._currentValue / Number(a.purchase_price) * 100) : 100;
+      return '<tr>' +
+        '<td>' +
+          '<div style="font-weight:500;">' + a.name + '</div>' +
+          (a.serial_number ? '<div style="font-size:11px;color:#94a3b8;">S/N: ' + a.serial_number + '</div>' : '') +
+        '</td>' +
+        '<td>' + (typeMap[a.type] || a.type) + '</td>' +
+        '<td style="white-space:nowrap;">' + formatDate(a.purchase_date) + '</td>' +
+        '<td class="text-right">฿' + formatMoney(a.purchase_price) + '</td>' +
+        '<td class="text-right">' +
+          '<div style="font-weight:600;color:' + (pctRemain > 50 ? '#10b981' : pctRemain > 20 ? '#f59e0b' : '#ef4444') + ';">฿' + formatMoney(a._currentValue) + '</div>' +
+          '<div style="font-size:11px;color:#94a3b8;">' + pctRemain.toFixed(0) + '% คงเหลือ</div>' +
+        '</td>' +
+        '<td class="text-right text-expense">' + (a.depreciation_method !== 'none' ? '฿' + formatMoney(a._annualDepr) : '—') + '</td>' +
+        '<td style="color:#64748b;font-size:12px;">' + (a.location || '—') + '</td>' +
+        '<td>' + (statusMap[a.status] || a.status) + '</td>' +
+        '<td style="white-space:nowrap;">' +
+          '<button class="btn btn-outline btn-icon btn-sm" onclick="showDetail(\'' + a.id + '\')" title="รายละเอียด">👁️</button> ' +
+          (canManage() ?
+            '<button class="btn btn-outline btn-icon btn-sm" onclick="editAsset(\'' + a.id + '\')" title="แก้ไข">✏️</button> ' +
+            '<button class="btn btn-danger btn-icon btn-sm" onclick="deleteAsset(\'' + a.id + '\')" title="ลบ">🗑️</button>'
+            : '') +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // ============================================
+  // DETAIL MODAL
+  // ============================================
+  window.showDetail = function(id) {
+    var a = allAssets.find(function(x) { return x.id === id; });
+    if (!a) return;
+    document.getElementById('detailTitle').textContent = a.name;
+
+    var pct = Number(a.purchase_price) > 0 ? (a._currentValue / Number(a.purchase_price) * 100) : 100;
+    var barColor = pct > 50 ? '#10b981' : pct > 20 ? '#f59e0b' : '#ef4444';
+    var methodMap = { straight_line: 'เส้นตรง', declining_balance: 'ยอดคงเหลือลดลง', none: 'ไม่คิดค่าเสื่อม' };
+
+    document.getElementById('detailBody').innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">' +
+        detail('ประเภท', a.type === 'fixed' ? '🏭 สินทรัพย์ถาวร' : a.type === 'current' ? '💧 สินทรัพย์หมุนเวียน' : '💡 ไม่มีตัวตน') +
+        detail('สถานะ', a.status === 'active' ? '✅ ใช้งานอยู่' : a.status === 'maintenance' ? '🔧 ซ่อมบำรุง' : '📦 จำหน่ายแล้ว') +
+        detail('วันที่ซื้อ', formatDate(a.purchase_date)) +
+        detail('ราคาซื้อ', '฿' + formatMoney(a.purchase_price)) +
+        detail('อายุการใช้งาน', a.useful_life_years ? a.useful_life_years + ' ปี' : '—') +
+        detail('วิธีเสื่อมราคา', methodMap[a.depreciation_method] || '—') +
+        detail('ค่าเสื่อม/ปี', a.depreciation_method !== 'none' ? '฿' + formatMoney(a._annualDepr) : '—') +
+        detail('เสื่อมสะสม', '฿' + formatMoney(a._deprAccum)) +
+        detail('สถานที่', a.location || '—') +
+        detail('S/N', a.serial_number || '—') +
+      '</div>' +
+      '<div style="margin-bottom:16px;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
+          '<span>มูลค่าปัจจุบัน</span>' +
+          '<span style="font-weight:700;color:' + barColor + ';">฿' + formatMoney(a._currentValue) + ' (' + pct.toFixed(1) + '%)</span>' +
+        '</div>' +
+        '<div style="height:12px;background:#f1f5f9;border-radius:6px;overflow:hidden;">' +
+          '<div style="height:100%;width:' + pct + '%;background:' + barColor + ';border-radius:6px;"></div>' +
+        '</div>' +
+      '</div>' +
+      (a.note ? '<div style="padding:10px;background:#f8fafc;border-radius:8px;font-size:13px;color:#475569;"><strong>หมายเหตุ:</strong> ' + a.note + '</div>' : '');
+
+    openModal('detailModal');
+  };
+
+  function detail(label, value) {
+    return '<div style="padding:10px;background:#f8fafc;border-radius:8px;">' +
+      '<div style="font-size:11px;color:#94a3b8;margin-bottom:2px;">' + label + '</div>' +
+      '<div style="font-size:13px;font-weight:500;">' + value + '</div>' +
+    '</div>';
+  }
+
+  // ============================================
+  // ADD / EDIT
+  // ============================================
+  window.openAssetModal = function() {
+    document.getElementById('assetEditId').value = '';
+    document.getElementById('assetModalTitle').textContent = 'เพิ่มทรัพย์สิน';
+    document.getElementById('fAssetName').value = '';
+    document.getElementById('fAssetType').value = 'fixed';
+    document.getElementById('fAssetPrice').value = '';
+    document.getElementById('fAssetDate').value = todayISO();
+    document.getElementById('fAssetDeprMethod').value = 'straight_line';
+    document.getElementById('fAssetLife').value = '5';
+    document.getElementById('fAssetLocation').value = '';
+    document.getElementById('fAssetSerial').value = '';
+    document.getElementById('fAssetStatus').value = 'active';
+    document.getElementById('fAssetNote').value = '';
+    document.getElementById('deprecPerYear').textContent = '—';
+    document.getElementById('deprecCurrentVal').textContent = '—';
+    openModal('assetModal');
+  };
+
+  window.editAsset = function(id) {
+    var a = allAssets.find(function(x) { return x.id === id; });
+    if (!a) return;
+    document.getElementById('assetEditId').value = a.id;
+    document.getElementById('assetModalTitle').textContent = 'แก้ไขทรัพย์สิน';
+    document.getElementById('fAssetName').value = a.name;
+    document.getElementById('fAssetType').value = a.type;
+    document.getElementById('fAssetPrice').value = a.purchase_price;
+    document.getElementById('fAssetDate').value = a.purchase_date;
+    document.getElementById('fAssetDeprMethod').value = a.depreciation_method || 'straight_line';
+    document.getElementById('fAssetLife').value = a.useful_life_years || 5;
+    document.getElementById('fAssetLocation').value = a.location || '';
+    document.getElementById('fAssetSerial').value = a.serial_number || '';
+    document.getElementById('fAssetStatus').value = a.status;
+    document.getElementById('fAssetNote').value = a.note || '';
+    calcDepreciation();
+    openModal('assetModal');
+  };
+
+  window.saveAsset = async function() {
+    var name = document.getElementById('fAssetName').value.trim();
+    var price = parseFloat(document.getElementById('fAssetPrice').value);
+    var date = document.getElementById('fAssetDate').value;
+
+    if (!name) { showToast('กรุณาระบุชื่อทรัพย์สิน', 'error'); return; }
+    if (!price || price <= 0) { showToast('กรุณาระบุราคาซื้อ', 'error'); return; }
+    if (!date) { showToast('กรุณาระบุวันที่ซื้อ', 'error'); return; }
+
+    var method = document.getElementById('fAssetDeprMethod').value;
+    var life = parseInt(document.getElementById('fAssetLife').value) || 0;
+    var annualDepr = calcAnnualDepr(price, life, method);
+
+    var data = {
+      name: name,
+      type: document.getElementById('fAssetType').value,
+      purchase_price: price,
+      purchase_date: date,
+      depreciation_method: method,
+      depreciation_rate: life > 0 ? (100 / life) : 0,
+      useful_life_years: life,
+      current_value: calcCurrentValue({ purchase_price: price, purchase_date: date, depreciation_method: method, useful_life_years: life }),
+      location: document.getElementById('fAssetLocation').value.trim() || null,
+      serial_number: document.getElementById('fAssetSerial').value.trim() || null,
+      status: document.getElementById('fAssetStatus').value,
+      note: document.getElementById('fAssetNote').value.trim() || null
+    };
+
+    var editId = document.getElementById('assetEditId').value;
+    var result;
+    if (editId) {
+      result = await supabase.from('assets').update(data).eq('id', editId);
+    } else {
+      data.created_by = APP.user.id;
+      result = await supabase.from('assets').insert([data]);
+    }
+
+    if (result.error) { showToast('เกิดข้อผิดพลาด: ' + result.error.message, 'error'); }
+    else { showToast('บันทึกสำเร็จ'); closeModal('assetModal'); loadAssets(); }
+  };
+
+  window.deleteAsset = async function(id) {
+    if (!confirm('ลบทรัพย์สินนี้?')) return;
+    var result = await supabase.from('assets').delete().eq('id', id);
+    if (result.error) { showToast('เกิดข้อผิดพลาด', 'error'); }
+    else { showToast('ลบสำเร็จ'); loadAssets(); }
+  };
+
+  // ============================================
+  // EXPORT
+  // ============================================
+  window.exportExcel = function() {
+    var rows = allAssets.map(function(a) {
+      return {
+        'ชื่อทรัพย์สิน': a.name,
+        'ประเภท': a.type,
+        'วันที่ซื้อ': a.purchase_date,
+        'ราคาซื้อ': Number(a.purchase_price),
+        'มูลค่าปัจจุบัน': Math.round(a._currentValue),
+        'ค่าเสื่อมสะสม': Math.round(a._deprAccum),
+        'ค่าเสื่อม/ปี': Math.round(a._annualDepr),
+        'วิธีคำนวณ': a.depreciation_method,
+        'อายุการใช้งาน (ปี)': a.useful_life_years || '',
+        'สถานที่': a.location || '',
+        'S/N': a.serial_number || '',
+        'สถานะ': a.status
+      };
+    });
+    exportToExcel(rows, 'assets_' + todayISO());
+    showToast('ส่งออก Excel สำเร็จ');
+  };
+
+  window.toggleSidebar = function() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
+  };
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>หนี้/ลูกหนี้</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="supabase-config.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><span class="logo">💼</span><div><div class="brand-name">ระบบบริหารการเงิน</div></div></div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item"><span class="nav-icon">📊</span><span>แดชบอร์ด</span></a>
+      <a href="transactions.html" class="nav-item"><span class="nav-icon">💰</span><span>รายรับ-รายจ่าย</span></a>
+      <a href="reports.html" class="nav-item"><span class="nav-icon">📈</span><span>รายงาน</span></a>
+      <a href="cashflow.html" class="nav-item"><span class="nav-icon">💧</span><span>กระแสเงินสด</span></a>
+      <a href="budget.html" class="nav-item"><span class="nav-icon">🎯</span><span>งบประมาณ</span></a>
+      <a href="debts.html" class="nav-item active"><span class="nav-icon">🤝</span><span>หนี้/ลูกหนี้</span></a>
+      <a href="assets.html" class="nav-item"><span class="nav-icon">🏭</span><span>ทรัพย์สิน</span></a>
+      <a href="admin.html" class="nav-item admin-only"><span class="nav-icon">⚙️</span><span>ผู้ดูแลระบบ</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info"><div class="user-avatar" id="userAvatar">U</div><div><div class="user-name" id="userName">—</div><div class="user-role" id="userRole">—</div></div></div>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">🚪 ออกจากระบบ</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <button class="menu-toggle" onclick="toggleSidebar()" style="display:none;">☰</button>
+      <h1 class="page-title">จัดการหนี้และลูกหนี้</h1>
+      <div class="header-actions">
+        <button class="btn btn-primary" onclick="openDebtModal()">➕ เพิ่มรายการหนี้</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- KPI -->
+      <div class="kpi-grid" style="margin-bottom:20px;">
+        <div class="kpi-card"><div class="kpi-icon expense">💸</div><div class="kpi-body"><div class="kpi-label">เจ้าหนี้คงค้าง</div><div class="kpi-value expense" id="kpiPayable">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon income">💰</div><div class="kpi-body"><div class="kpi-label">ลูกหนี้คงค้าง</div><div class="kpi-value income" id="kpiReceivable">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon balance">⚠️</div><div class="kpi-body"><div class="kpi-label">เกินกำหนด</div><div class="kpi-value expense" id="kpiOverdue">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon profit">📋</div><div class="kpi-body"><div class="kpi-label">รายการทั้งหมด</div><div class="kpi-value profit" id="kpiCount">0</div></div></div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab-item active" onclick="setDebtTab('all')" id="dTabAll">ทั้งหมด</div>
+        <div class="tab-item" onclick="setDebtTab('payable')" id="dTabPayable">เจ้าหนี้ (ที่ต้องจ่าย)</div>
+        <div class="tab-item" onclick="setDebtTab('receivable')" id="dTabReceivable">ลูกหนี้ (ที่ต้องรับ)</div>
+        <div class="tab-item" onclick="setDebtTab('overdue')" id="dTabOverdue">เกินกำหนด</div>
+      </div>
+
+      <!-- Filter -->
+      <div class="filter-bar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="form-control" id="debtSearch" placeholder="ค้นหา..." oninput="filterDebts()">
+        </div>
+        <select class="form-control" id="debtStatusFilter" style="max-width:160px;" onchange="filterDebts()">
+          <option value="">ทุกสถานะ</option>
+          <option value="pending">รอดำเนินการ</option>
+          <option value="partial">ชำระบางส่วน</option>
+          <option value="paid">ชำระแล้ว</option>
+          <option value="overdue">เกินกำหนด</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="exportDebtsExcel()">📊 Excel</button>
+      </div>
+
+      <!-- Table -->
+      <div class="card">
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ประเภท</th>
+                <th>ชื่อ</th>
+                <th>ติดต่อ</th>
+                <th class="text-right">ยอดหนี้</th>
+                <th class="text-right">ชำระแล้ว</th>
+                <th class="text-right">คงค้าง</th>
+                <th>ครบกำหนด</th>
+                <th>สถานะ</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="debtBody">
+              <tr><td colspan="9" style="text-align:center;padding:40px;color:#94a3b8;">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- DEBT MODAL -->
+<div class="modal-overlay" id="debtModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="debtModalTitle">เพิ่มรายการหนี้</h3>
+      <button class="modal-close" onclick="closeModal('debtModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="debtEditId">
+
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="btn btn-danger" id="btnPayable" onclick="setDebtType('payable')" style="flex:1;justify-content:center;">💸 เจ้าหนี้ (ต้องจ่าย)</button>
+        <button class="btn btn-outline" id="btnReceivable" onclick="setDebtType('receivable')" style="flex:1;justify-content:center;">💰 ลูกหนี้ (ต้องรับ)</button>
+      </div>
+      <input type="hidden" id="fDebtType" value="payable">
+
+      <div class="form-group">
+        <label class="form-label">ชื่อเจ้าหนี้/ลูกหนี้ <span class="required">*</span></label>
+        <input type="text" class="form-control" id="fDebtName" placeholder="ชื่อบริษัท / บุคคล">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ข้อมูลติดต่อ</label>
+        <input type="text" class="form-control" id="fDebtContact" placeholder="เบอร์โทร / อีเมล / LINE">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">จำนวนหนี้ <span class="required">*</span></label>
+          <input type="number" class="form-control" id="fDebtAmount" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">อัตราดอกเบี้ย (%/ปี)</label>
+          <input type="number" class="form-control" id="fDebtInterest" placeholder="0" min="0" step="0.01" value="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วันที่ออก <span class="required">*</span></label>
+          <input type="date" class="form-control" id="fDebtIssue">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันครบกำหนด</label>
+          <input type="date" class="form-control" id="fDebtDue">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">รายละเอียด</label>
+        <input type="text" class="form-control" id="fDebtDesc" placeholder="รายละเอียดหนี้">
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <textarea class="form-control" id="fDebtNote" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('debtModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveDebt()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h3 class="modal-title">บันทึกการชำระ</h3>
+      <button class="modal-close" onclick="closeModal('paymentModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="payDebtId">
+      <div style="padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:16px;">
+        <div style="font-size:13px;color:#64748b;">ยอดคงค้าง</div>
+        <div style="font-size:22px;font-weight:700;color:#ef4444;" id="payRemaining">฿0</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">จำนวนที่ชำระ <span class="required">*</span></label>
+        <input type="number" class="form-control" id="fPayAmount" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วันที่ชำระ</label>
+          <input type="date" class="form-control" id="fPayDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วิธีชำระ</label>
+          <select class="form-control" id="fPayMethod">
+            <option value="cash">เงินสด</option>
+            <option value="bank_transfer">โอนเงิน</option>
+            <option value="check">เช็ค</option>
+            <option value="other">อื่น ๆ</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <input type="text" class="form-control" id="fPayNote">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('paymentModal')">ยกเลิก</button>
+      <button class="btn btn-success" onclick="savePayment()">💵 บันทึกการชำระ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var allDebts = [];
+  var currentTab = 'all';
+  var deleteDebtId = null;
+
+  checkAuth().then(function(session) {
+    if (!session) return;
+    initUI();
+    document.getElementById('fDebtIssue').value = todayISO();
+    document.getElementById('fPayDate').value = todayISO();
+    loadDebts();
+  });
+
+  function initUI() {
+    var p = APP.profile;
+    if (!p) return;
+    document.getElementById('userAvatar').textContent = (p.full_name || 'U').charAt(0).toUpperCase();
+    document.getElementById('userName').textContent = p.full_name || p.email;
+    if (p.role !== 'admin') document.querySelectorAll('.admin-only').forEach(function(el) { el.style.display = 'none'; });
+    if (window.innerWidth <= 768) document.querySelector('.menu-toggle').style.display = 'flex';
+  }
+
+  async function loadDebts() {
+    var result = await supabase.from('debts').select('*').order('due_date', { ascending: true, nullsFirst: false });
+    allDebts = result.data || [];
+
+    // Update overdue status
+    var today = todayISO();
+    allDebts.forEach(function(d) {
+      if (d.due_date && d.due_date < today && ['pending','partial'].includes(d.status)) {
+        d.status = 'overdue';
+      }
+    });
+
+    updateKPIs();
+    filterDebts();
+  }
+
+  function updateKPIs() {
+    var payable = 0, receivable = 0, overdue = 0;
+    var today = todayISO();
+
+    allDebts.forEach(function(d) {
+      var remaining = Number(d.amount) - Number(d.paid_amount || 0);
+      if (['pending','partial','overdue'].includes(d.status)) {
+        if (d.type === 'payable') payable += remaining;
+        else receivable += remaining;
+        if (d.due_date && d.due_date < today) overdue += remaining;
+      }
+    });
+
+    document.getElementById('kpiPayable').textContent = '฿' + formatMoney(payable);
+    document.getElementById('kpiReceivable').textContent = '฿' + formatMoney(receivable);
+    document.getElementById('kpiOverdue').textContent = '฿' + formatMoney(overdue);
+    document.getElementById('kpiCount').textContent = allDebts.length;
+  }
+
+  window.setDebtTab = function(tab) {
+    currentTab = tab;
+    ['all','payable','receivable','overdue'].forEach(function(t) {
+      var id = 'dTab' + t.charAt(0).toUpperCase() + t.slice(1);
+      document.getElementById(id).classList.toggle('active', t === tab);
+    });
+    filterDebts();
+  };
+
+  window.filterDebts = function() {
+    var search = document.getElementById('debtSearch').value.toLowerCase();
+    var statusFilter = document.getElementById('debtStatusFilter').value;
+    var today = todayISO();
+
+    var filtered = allDebts.filter(function(d) {
+      if (currentTab === 'payable' && d.type !== 'payable') return false;
+      if (currentTab === 'receivable' && d.type !== 'receivable') return false;
+      if (currentTab === 'overdue' && !(d.due_date && d.due_date < today)) return false;
+      if (statusFilter && d.status !== statusFilter) return false;
+      if (search) {
+        var name = (d.counterparty_name || '').toLowerCase();
+        var desc = (d.description || '').toLowerCase();
+        if (!name.includes(search) && !desc.includes(search)) return false;
+      }
+      return true;
+    });
+
+    renderDebtTable(filtered);
+  };
+
+  function renderDebtTable(data) {
+    var tbody = document.getElementById('debtBody');
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:#94a3b8;">ไม่มีข้อมูล</td></tr>';
+      return;
+    }
+
+    var statusMap = {
+      pending: '<span class="badge badge-warning">รอดำเนินการ</span>',
+      partial: '<span class="badge badge-info">ชำระบางส่วน</span>',
+      paid: '<span class="badge badge-success">ชำระแล้ว</span>',
+      overdue: '<span class="badge badge-danger">เกินกำหนด</span>',
+      cancelled: '<span class="badge badge-gray">ยกเลิก</span>'
+    };
+
+    var today = todayISO();
+
+    tbody.innerHTML = data.map(function(d) {
+      var remaining = Number(d.amount) - Number(d.paid_amount || 0);
+      var isOverdue = d.due_date && d.due_date < today && d.status !== 'paid';
+      var dueDateStyle = isOverdue ? 'color:#ef4444;font-weight:600;' : '';
+      var isPayable = d.type === 'payable';
+      var canEditRow = canEdit();
+
+      return '<tr>' +
+        '<td>' + (isPayable ? '<span class="badge badge-danger">💸 เจ้าหนี้</span>' : '<span class="badge badge-success">💰 ลูกหนี้</span>') + '</td>' +
+        '<td style="font-weight:500;">' + d.counterparty_name + '</td>' +
+        '<td style="color:#64748b;font-size:12px;">' + (d.counterparty_contact || '—') + '</td>' +
+        '<td class="text-right">฿' + formatMoney(d.amount) + '</td>' +
+        '<td class="text-right text-income">฿' + formatMoney(d.paid_amount || 0) + '</td>' +
+        '<td class="text-right ' + (remaining > 0 ? 'text-expense' : 'text-income') + '" style="font-weight:600;">฿' + formatMoney(remaining) + '</td>' +
+        '<td style="white-space:nowrap;' + dueDateStyle + '">' + (d.due_date ? formatDate(d.due_date) : '—') + (isOverdue ? ' ⚠️' : '') + '</td>' +
+        '<td>' + (statusMap[d.status] || d.status) + '</td>' +
+        '<td style="white-space:nowrap;">' +
+          (canEditRow && d.status !== 'paid' && d.status !== 'cancelled' ?
+            '<button class="btn btn-success btn-icon btn-sm" onclick="openPaymentModal(\'' + d.id + '\',' + remaining + ')" title="บันทึกชำระ">💵</button> '
+            : '') +
+          (canEditRow ? '<button class="btn btn-outline btn-icon btn-sm" onclick="editDebt(\'' + d.id + '\')" title="แก้ไข">✏️</button>' : '') +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // ============================================
+  // ADD/EDIT DEBT
+  // ============================================
+  window.openDebtModal = function() {
+    document.getElementById('debtEditId').value = '';
+    document.getElementById('debtModalTitle').textContent = 'เพิ่มรายการหนี้';
+    document.getElementById('fDebtName').value = '';
+    document.getElementById('fDebtContact').value = '';
+    document.getElementById('fDebtAmount').value = '';
+    document.getElementById('fDebtInterest').value = '0';
+    document.getElementById('fDebtIssue').value = todayISO();
+    document.getElementById('fDebtDue').value = '';
+    document.getElementById('fDebtDesc').value = '';
+    document.getElementById('fDebtNote').value = '';
+    setDebtType('payable');
+    openModal('debtModal');
+  };
+
+  window.editDebt = function(id) {
+    var d = allDebts.find(function(x) { return x.id === id; });
+    if (!d) return;
+    document.getElementById('debtEditId').value = d.id;
+    document.getElementById('debtModalTitle').textContent = 'แก้ไขรายการหนี้';
+    document.getElementById('fDebtName').value = d.counterparty_name || '';
+    document.getElementById('fDebtContact').value = d.counterparty_contact || '';
+    document.getElementById('fDebtAmount').value = d.amount;
+    document.getElementById('fDebtInterest').value = d.interest_rate || 0;
+    document.getElementById('fDebtIssue').value = d.issue_date || '';
+    document.getElementById('fDebtDue').value = d.due_date || '';
+    document.getElementById('fDebtDesc').value = d.description || '';
+    document.getElementById('fDebtNote').value = d.note || '';
+    setDebtType(d.type);
+    openModal('debtModal');
+  };
+
+  window.setDebtType = function(type) {
+    document.getElementById('fDebtType').value = type;
+    document.getElementById('btnPayable').className = 'btn ' + (type === 'payable' ? 'btn-danger' : 'btn-outline');
+    document.getElementById('btnReceivable').className = 'btn ' + (type === 'receivable' ? 'btn-success' : 'btn-outline');
+    document.getElementById('btnPayable').style.flex = '1';
+    document.getElementById('btnReceivable').style.flex = '1';
+    document.getElementById('btnPayable').style.justifyContent = 'center';
+    document.getElementById('btnReceivable').style.justifyContent = 'center';
+  };
+
+  window.saveDebt = async function() {
+    var name = document.getElementById('fDebtName').value.trim();
+    var amount = parseFloat(document.getElementById('fDebtAmount').value);
+
+    if (!name) { showToast('กรุณาระบุชื่อ', 'error'); return; }
+    if (!amount || amount <= 0) { showToast('กรุณาระบุจำนวนหนี้', 'error'); return; }
+
+    var data = {
+      type: document.getElementById('fDebtType').value,
+      counterparty_name: name,
+      counterparty_contact: document.getElementById('fDebtContact').value.trim() || null,
+      amount: amount,
+      interest_rate: parseFloat(document.getElementById('fDebtInterest').value) || 0,
+      issue_date: document.getElementById('fDebtIssue').value || todayISO(),
+      due_date: document.getElementById('fDebtDue').value || null,
+      description: document.getElementById('fDebtDesc').value.trim() || null,
+      note: document.getElementById('fDebtNote').value.trim() || null,
+      updated_by: APP.user.id
+    };
+
+    var editId = document.getElementById('debtEditId').value;
+    var result;
+    if (editId) {
+      result = await supabase.from('debts').update(data).eq('id', editId);
+    } else {
+      data.created_by = APP.user.id;
+      result = await supabase.from('debts').insert([data]);
+    }
+
+    if (result.error) { showToast('เกิดข้อผิดพลาด: ' + result.error.message, 'error'); }
+    else { showToast(editId ? 'แก้ไขสำเร็จ' : 'บันทึกสำเร็จ'); closeModal('debtModal'); loadDebts(); }
+  };
+
+  // ============================================
+  // PAYMENT
+  // ============================================
+  window.openPaymentModal = function(debtId, remaining) {
+    document.getElementById('payDebtId').value = debtId;
+    document.getElementById('payRemaining').textContent = '฿' + formatMoney(remaining);
+    document.getElementById('fPayAmount').value = '';
+    document.getElementById('fPayDate').value = todayISO();
+    document.getElementById('fPayNote').value = '';
+    openModal('paymentModal');
+  };
+
+  window.savePayment = async function() {
+    var amount = parseFloat(document.getElementById('fPayAmount').value);
+    var debtId = document.getElementById('payDebtId').value;
+
+    if (!amount || amount <= 0) { showToast('กรุณาระบุจำนวนเงิน', 'error'); return; }
+
+    var result = await supabase.from('debt_payments').insert([{
+      debt_id: debtId,
+      amount: amount,
+      payment_date: document.getElementById('fPayDate').value || todayISO(),
+      payment_method: document.getElementById('fPayMethod').value,
+      note: document.getElementById('fPayNote').value.trim() || null,
+      created_by: APP.user.id
+    }]);
+
+    if (result.error) { showToast('เกิดข้อผิดพลาด: ' + result.error.message, 'error'); }
+    else { showToast('บันทึกการชำระสำเร็จ'); closeModal('paymentModal'); loadDebts(); }
+  };
+
+  // ============================================
+  // EXPORT
+  // ============================================
+  window.exportDebtsExcel = function() {
+    var rows = allDebts.map(function(d) {
+      return {
+        'ประเภท': d.type === 'payable' ? 'เจ้าหนี้' : 'ลูกหนี้',
+        'ชื่อ': d.counterparty_name,
+        'ติดต่อ': d.counterparty_contact || '',
+        'ยอดหนี้': Number(d.amount),
+        'ชำระแล้ว': Number(d.paid_amount || 0),
+        'คงค้าง': Number(d.amount) - Number(d.paid_amount || 0),
+        'วันออก': d.issue_date,
+        'ครบกำหนด': d.due_date || '',
+        'สถานะ': d.status,
+        'รายละเอียด': d.description || ''
+      };
+    });
+    exportToExcel(rows, 'debts_' + todayISO());
+    showToast('ส่งออก Excel สำเร็จ');
+  };
+
+  window.toggleSidebar = function() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
+  };
+
+})();
+</script>
+</body>
+</html>

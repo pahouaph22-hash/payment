@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>กระแสเงินสด</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="supabase-config.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><span class="logo">💼</span><div><div class="brand-name">ระบบบริหารการเงิน</div></div></div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item"><span class="nav-icon">📊</span><span>แดชบอร์ด</span></a>
+      <a href="transactions.html" class="nav-item"><span class="nav-icon">💰</span><span>รายรับ-รายจ่าย</span></a>
+      <a href="reports.html" class="nav-item"><span class="nav-icon">📈</span><span>รายงาน</span></a>
+      <a href="cashflow.html" class="nav-item active"><span class="nav-icon">💧</span><span>กระแสเงินสด</span></a>
+      <a href="budget.html" class="nav-item"><span class="nav-icon">🎯</span><span>งบประมาณ</span></a>
+      <a href="debts.html" class="nav-item"><span class="nav-icon">🤝</span><span>หนี้/ลูกหนี้</span></a>
+      <a href="assets.html" class="nav-item"><span class="nav-icon">🏭</span><span>ทรัพย์สิน</span></a>
+      <a href="admin.html" class="nav-item admin-only"><span class="nav-icon">⚙️</span><span>ผู้ดูแลระบบ</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info"><div class="user-avatar" id="userAvatar">U</div><div><div class="user-name" id="userName">—</div><div class="user-role" id="userRole">—</div></div></div>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">🚪 ออกจากระบบ</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <button class="menu-toggle" onclick="toggleSidebar()" style="display:none;">☰</button>
+      <h1 class="page-title">กระแสเงินสด</h1>
+      <div class="header-actions">
+        <button class="btn btn-primary" onclick="openPlanModal()">➕ เพิ่มแผน</button>
+        <button class="btn btn-outline btn-sm" onclick="exportExcel()">📊 Excel</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- KPI -->
+      <div class="kpi-grid" style="margin-bottom:20px;">
+        <div class="kpi-card"><div class="kpi-icon income">💚</div><div class="kpi-body"><div class="kpi-label">รายรับจริง (เดือนนี้)</div><div class="kpi-value income" id="cfActualIncome">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon expense">❤️</div><div class="kpi-body"><div class="kpi-label">รายจ่ายจริง (เดือนนี้)</div><div class="kpi-value expense" id="cfActualExpense">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon profit">💜</div><div class="kpi-body"><div class="kpi-label">แผนรายรับ (เดือนนี้)</div><div class="kpi-value profit" id="cfPlanIncome">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon balance">💛</div><div class="kpi-body"><div class="kpi-label">กระแสเงินสดสุทธิ</div><div class="kpi-value balance" id="cfNet">฿0</div></div></div>
+      </div>
+
+      <!-- Chart: Projected vs Actual -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <span class="card-title">กราฟกระแสเงินสด: แผน vs จริง (6 เดือน)</span>
+          <select class="form-control" id="cfYear" style="max-width:140px;" onchange="loadCashflow()"></select>
+        </div>
+        <canvas id="cfChart" height="100"></canvas>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab-item active" onclick="setCfTab('actual')" id="cfTabActual">กระแสเงินสดจริง</div>
+        <div class="tab-item" onclick="setCfTab('plan')" id="cfTabPlan">แผนกระแสเงินสด</div>
+      </div>
+
+      <!-- Actual Cashflow Table -->
+      <div id="actualTab">
+        <div class="filter-bar">
+          <input type="date" class="form-control" id="cfFrom" style="max-width:150px;" onchange="loadActual()">
+          <input type="date" class="form-control" id="cfTo" style="max-width:150px;" onchange="loadActual()">
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">รายการเงินสดจริง</span></div>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>วันที่</th>
+                  <th>ประเภท</th>
+                  <th>รายละเอียด</th>
+                  <th class="text-right">รายรับ</th>
+                  <th class="text-right">รายจ่าย</th>
+                  <th class="text-right">ยอดคงเหลือ</th>
+                </tr>
+              </thead>
+              <tbody id="actualBody">
+                <tr><td colspan="6" style="text-align:center;padding:30px;color:#94a3b8;">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Plan Tab -->
+      <div id="planTab" style="display:none;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">แผนกระแสเงินสด</span></div>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>ชื่อแผน</th>
+                  <th>ประเภท</th>
+                  <th>ความถี่</th>
+                  <th class="text-right">จำนวน</th>
+                  <th>วันเริ่ม</th>
+                  <th>วันสิ้นสุด</th>
+                  <th>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="planBody">
+                <tr><td colspan="7" style="text-align:center;padding:30px;color:#94a3b8;">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- PLAN MODAL -->
+<div class="modal-overlay" id="planModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="planModalTitle">เพิ่มแผนกระแสเงินสด</h3>
+      <button class="modal-close" onclick="closeModal('planModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="planEditId">
+
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="btn btn-success" id="planBtnIncome" onclick="setPlanType('income')" style="flex:1;justify-content:center;">💚 รายรับ</button>
+        <button class="btn btn-outline" id="planBtnExpense" onclick="setPlanType('expense')" style="flex:1;justify-content:center;">❤️ รายจ่าย</button>
+      </div>
+      <input type="hidden" id="fPlanType" value="income">
+
+      <div class="form-group">
+        <label class="form-label">ชื่อแผน <span class="required">*</span></label>
+        <input type="text" class="form-control" id="fPlanName" placeholder="เช่น รายได้จากการขาย, ค่าเช่า">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">จำนวน <span class="required">*</span></label>
+          <input type="number" class="form-control" id="fPlanAmount" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ความถี่</label>
+          <select class="form-control" id="fPlanFreq">
+            <option value="once">ครั้งเดียว</option>
+            <option value="monthly" selected>รายเดือน</option>
+            <option value="weekly">รายสัปดาห์</option>
+            <option value="daily">รายวัน</option>
+            <option value="quarterly">รายไตรมาส</option>
+            <option value="yearly">รายปี</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วันเริ่มต้น <span class="required">*</span></label>
+          <input type="date" class="form-control" id="fPlanStart">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันสิ้นสุด</label>
+          <input type="date" class="form-control" id="fPlanEnd">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมวดหมู่</label>
+        <select class="form-control" id="fPlanCategory">
+          <option value="">— เลือกหมวดหมู่ —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <textarea class="form-control" id="fPlanNote" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('planModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="savePlan()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var cfChartInst = null;
+  var allPlans = [];
+  var categories = [];
+  var currentTab = 'actual';
+
+  checkAuth().then(function(session) {
+    if (!session) return;
+    initUI();
+    initYearSelect();
+    document.getElementById('cfFrom').value = monthStart();
+    document.getElementById('cfTo').value = monthEnd();
+    document.getElementById('fPlanStart').value = monthStart();
+    loadCashflow();
+    loadCategories();
+    loadPlans();
+  });
+
+  function initUI() {
+    var p = APP.profile;
+    if (!p) return;
+    document.getElementById('userAvatar').textContent = (p.full_name || 'U').charAt(0).toUpperCase();
+    document.getElementById('userName').textContent = p.full_name || p.email;
+    if (p.role !== 'admin') document.querySelectorAll('.admin-only').forEach(function(el) { el.style.display = 'none'; });
+    if (window.innerWidth <= 768) document.querySelector('.menu-toggle').style.display = 'flex';
+  }
+
+  function initYearSelect() {
+    var year = new Date().getFullYear();
+    var sel = document.getElementById('cfYear');
+    var opts = '';
+    for (var y = year; y >= year - 3; y--) {
+      opts += '<option value="' + y + '"' + (y === year ? ' selected' : '') + '>' + (y + 543) + '</option>';
+    }
+    sel.innerHTML = opts;
+  }
+
+  async function loadCategories() {
+    var result = await supabase.from('categories').select('*').order('name_th');
+    categories = result.data || [];
+    var opts = '<option value="">— เลือกหมวดหมู่ —</option>';
+    categories.forEach(function(c) {
+      opts += '<option value="' + c.id + '">' + c.icon + ' ' + c.name_th + '</option>';
+    });
+    document.getElementById('fPlanCategory').innerHTML = opts;
+  }
+
+  // ============================================
+  // CHART: Projected vs Actual
+  // ============================================
+  window.loadCashflow = async function() {
+    var year = parseInt(document.getElementById('cfYear').value);
+    var months = [], labels = [];
+    var actualInc = [], actualExp = [], planInc = [], planExp = [];
+
+    var now = new Date();
+    var startMonth = Math.max(0, now.getMonth() - 2);
+
+    for (var m = 0; m < 6; m++) {
+      var mIdx = (startMonth + m) % 12;
+      var mYear = year + Math.floor((startMonth + m) / 12);
+      var mStart = new Date(mYear, mIdx, 1).toISOString().split('T')[0];
+      var mEnd = new Date(mYear, mIdx + 1, 0).toISOString().split('T')[0];
+      labels.push(new Date(mYear, mIdx, 1).toLocaleDateString('th-TH', { month: 'short', year: '2-digit' }));
+
+      var txRes = await supabase.from('transactions').select('type,amount').eq('status','completed').gte('date',mStart).lte('date',mEnd);
+      var aInc = 0, aExp = 0;
+      (txRes.data || []).forEach(function(t) {
+        if (t.type === 'income') aInc += Number(t.amount);
+        else aExp += Number(t.amount);
+      });
+      actualInc.push(aInc);
+      actualExp.push(aExp);
+
+      // Plan: sum monthly/weekly/daily projected amounts
+      var planRes = await supabase.from('cashflow_plans').select('*').lte('start_date', mEnd).or('end_date.is.null,end_date.gte.' + mStart);
+      var pInc = 0, pExp = 0;
+      (planRes.data || []).forEach(function(p) {
+        var amt = Number(p.amount);
+        var multiplier = 1;
+        if (p.frequency === 'weekly') multiplier = 4.33;
+        else if (p.frequency === 'daily') multiplier = 30;
+        else if (p.frequency === 'quarterly') multiplier = 0.33;
+        else if (p.frequency === 'yearly') multiplier = 0.083;
+        var projected = amt * multiplier;
+        if (p.type === 'income') pInc += projected;
+        else pExp += projected;
+      });
+      planInc.push(pInc);
+      planExp.push(pExp);
+    }
+
+    // KPIs
+    var thisMonthIdx = labels.length - 1;
+    document.getElementById('cfActualIncome').textContent = '฿' + formatMoney(actualInc[thisMonthIdx] || 0);
+    document.getElementById('cfActualExpense').textContent = '฿' + formatMoney(actualExp[thisMonthIdx] || 0);
+    document.getElementById('cfPlanIncome').textContent = '฿' + formatMoney(planInc[thisMonthIdx] || 0);
+    var net = (actualInc[thisMonthIdx] || 0) - (actualExp[thisMonthIdx] || 0);
+    document.getElementById('cfNet').textContent = (net >= 0 ? '' : '-') + '฿' + formatMoney(Math.abs(net));
+    document.getElementById('cfNet').className = 'kpi-value ' + (net >= 0 ? 'balance' : 'expense');
+
+    if (cfChartInst) cfChartInst.destroy();
+    cfChartInst = new Chart(document.getElementById('cfChart'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'รายรับจริง', data: actualInc, backgroundColor: 'rgba(16,185,129,.8)', borderRadius: 4 },
+          { label: 'รายจ่ายจริง', data: actualExp, backgroundColor: 'rgba(239,68,68,.8)', borderRadius: 4 },
+          { label: 'แผนรายรับ', data: planInc, type: 'line', borderColor: '#10b981', borderDash: [6,3], tension: .4, fill: false, pointRadius: 4 },
+          { label: 'แผนรายจ่าย', data: planExp, type: 'line', borderColor: '#ef4444', borderDash: [6,3], tension: .4, fill: false, pointRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '฿' + formatMoney(v,0); } } } }
+      }
+    });
+
+    loadActual();
+  };
+
+  // ============================================
+  // ACTUAL CASHFLOW TABLE (running balance)
+  // ============================================
+  window.loadActual = async function() {
+    var from = document.getElementById('cfFrom').value || monthStart();
+    var to = document.getElementById('cfTo').value || monthEnd();
+
+    var result = await supabase
+      .from('transactions')
+      .select('type,amount,date,description,categories(name_th,icon)')
+      .eq('status','completed')
+      .gte('date', from)
+      .lte('date', to)
+      .order('date', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    var tbody = document.getElementById('actualBody');
+    var data = result.data || [];
+
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#94a3b8;">ไม่มีข้อมูล</td></tr>';
+      return;
+    }
+
+    // Running balance
+    var balance = 0;
+    var rows = data.map(function(t) {
+      var isInc = t.type === 'income';
+      if (isInc) balance += Number(t.amount);
+      else balance -= Number(t.amount);
+      var catName = t.categories ? (t.categories.icon + ' ' + t.categories.name_th) : '—';
+      return '<tr>' +
+        '<td style="white-space:nowrap;">' + formatDate(t.date) + '</td>' +
+        '<td>' + (isInc ? '<span class="badge badge-success">รายรับ</span>' : '<span class="badge badge-danger">รายจ่าย</span>') + '</td>' +
+        '<td>' + (t.description || catName || '—') + '</td>' +
+        '<td class="text-right text-income">' + (isInc ? '฿' + formatMoney(t.amount) : '—') + '</td>' +
+        '<td class="text-right text-expense">' + (!isInc ? '฿' + formatMoney(t.amount) : '—') + '</td>' +
+        '<td class="text-right" style="font-weight:600;color:' + (balance >= 0 ? '#10b981' : '#ef4444') + ';">฿' + formatMoney(balance) + '</td>' +
+      '</tr>';
+    });
+
+    tbody.innerHTML = rows.join('');
+  };
+
+  // ============================================
+  // PLANS
+  // ============================================
+  async function loadPlans() {
+    var result = await supabase.from('cashflow_plans').select('*, categories(name_th,icon)').order('start_date');
+    allPlans = result.data || [];
+    renderPlans();
+  }
+
+  function renderPlans() {
+    var tbody = document.getElementById('planBody');
+    if (!allPlans.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#94a3b8;">ยังไม่มีแผน</td></tr>';
+      return;
+    }
+
+    var freqMap = { once: 'ครั้งเดียว', daily: 'รายวัน', weekly: 'รายสัปดาห์', monthly: 'รายเดือน', quarterly: 'รายไตรมาส', yearly: 'รายปี' };
+
+    tbody.innerHTML = allPlans.map(function(p) {
+      var catName = p.categories ? (p.categories.icon + ' ' + p.categories.name_th) : '—';
+      return '<tr>' +
+        '<td style="font-weight:500;">' + p.name + '</td>' +
+        '<td>' + (p.type === 'income' ? '<span class="badge badge-success">💚 รายรับ</span>' : '<span class="badge badge-danger">❤️ รายจ่าย</span>') + '</td>' +
+        '<td>' + (freqMap[p.frequency] || p.frequency) + '</td>' +
+        '<td class="text-right ' + (p.type === 'income' ? 'text-income' : 'text-expense') + '" style="font-weight:600;">฿' + formatMoney(p.amount) + '</td>' +
+        '<td>' + formatDate(p.start_date) + '</td>' +
+        '<td>' + (p.end_date ? formatDate(p.end_date) : '∞') + '</td>' +
+        '<td>' +
+          (canEdit() ? '<button class="btn btn-outline btn-icon btn-sm" onclick="editPlan(\'' + p.id + '\')">✏️</button> ' +
+          '<button class="btn btn-danger btn-icon btn-sm" onclick="deletePlan(\'' + p.id + '\')">🗑️</button>' : '—') +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  window.setCfTab = function(tab) {
+    currentTab = tab;
+    document.getElementById('cfTabActual').classList.toggle('active', tab === 'actual');
+    document.getElementById('cfTabPlan').classList.toggle('active', tab === 'plan');
+    document.getElementById('actualTab').style.display = tab === 'actual' ? '' : 'none';
+    document.getElementById('planTab').style.display = tab === 'plan' ? '' : 'none';
+  };
+
+  window.openPlanModal = function() {
+    document.getElementById('planEditId').value = '';
+    document.getElementById('planModalTitle').textContent = 'เพิ่มแผนกระแสเงินสด';
+    document.getElementById('fPlanName').value = '';
+    document.getElementById('fPlanAmount').value = '';
+    document.getElementById('fPlanFreq').value = 'monthly';
+    document.getElementById('fPlanStart').value = monthStart();
+    document.getElementById('fPlanEnd').value = '';
+    document.getElementById('fPlanCategory').value = '';
+    document.getElementById('fPlanNote').value = '';
+    setPlanType('income');
+    openModal('planModal');
+  };
+
+  window.editPlan = function(id) {
+    var p = allPlans.find(function(x) { return x.id === id; });
+    if (!p) return;
+    document.getElementById('planEditId').value = p.id;
+    document.getElementById('planModalTitle').textContent = 'แก้ไขแผน';
+    document.getElementById('fPlanName').value = p.name;
+    document.getElementById('fPlanAmount').value = p.amount;
+    document.getElementById('fPlanFreq').value = p.frequency;
+    document.getElementById('fPlanStart').value = p.start_date;
+    document.getElementById('fPlanEnd').value = p.end_date || '';
+    document.getElementById('fPlanCategory').value = p.category_id || '';
+    document.getElementById('fPlanNote').value = p.note || '';
+    setPlanType(p.type);
+    openModal('planModal');
+  };
+
+  window.setPlanType = function(type) {
+    document.getElementById('fPlanType').value = type;
+    document.getElementById('planBtnIncome').className = 'btn ' + (type === 'income' ? 'btn-success' : 'btn-outline');
+    document.getElementById('planBtnExpense').className = 'btn ' + (type === 'expense' ? 'btn-danger' : 'btn-outline');
+    document.getElementById('planBtnIncome').style.flex = '1';
+    document.getElementById('planBtnExpense').style.flex = '1';
+    document.getElementById('planBtnIncome').style.justifyContent = 'center';
+    document.getElementById('planBtnExpense').style.justifyContent = 'center';
+  };
+
+  window.savePlan = async function() {
+    var name = document.getElementById('fPlanName').value.trim();
+    var amount = parseFloat(document.getElementById('fPlanAmount').value);
+    if (!name) { showToast('กรุณาระบุชื่อแผน', 'error'); return; }
+    if (!amount || amount <= 0) { showToast('กรุณาระบุจำนวนเงิน', 'error'); return; }
+
+    var data = {
+      name: name,
+      type: document.getElementById('fPlanType').value,
+      amount: amount,
+      frequency: document.getElementById('fPlanFreq').value,
+      start_date: document.getElementById('fPlanStart').value || monthStart(),
+      end_date: document.getElementById('fPlanEnd').value || null,
+      category_id: document.getElementById('fPlanCategory').value || null,
+      note: document.getElementById('fPlanNote').value.trim() || null
+    };
+
+    var editId = document.getElementById('planEditId').value;
+    var result;
+    if (editId) {
+      result = await supabase.from('cashflow_plans').update(data).eq('id', editId);
+    } else {
+      data.created_by = APP.user.id;
+      result = await supabase.from('cashflow_plans').insert([data]);
+    }
+
+    if (result.error) { showToast('เกิดข้อผิดพลาด: ' + result.error.message, 'error'); }
+    else { showToast('บันทึกสำเร็จ'); closeModal('planModal'); loadPlans(); loadCashflow(); }
+  };
+
+  window.deletePlan = async function(id) {
+    if (!confirm('ลบแผนนี้?')) return;
+    var result = await supabase.from('cashflow_plans').delete().eq('id', id);
+    if (result.error) { showToast('เกิดข้อผิดพลาด', 'error'); }
+    else { showToast('ลบสำเร็จ'); loadPlans(); loadCashflow(); }
+  };
+
+  // ============================================
+  // EXPORT
+  // ============================================
+  window.exportExcel = async function() {
+    var from = document.getElementById('cfFrom').value || monthStart();
+    var to = document.getElementById('cfTo').value || monthEnd();
+    var result = await supabase.from('transactions').select('*,categories(name_th)').eq('status','completed').gte('date',from).lte('date',to).order('date',{ascending:true});
+    var balance = 0;
+    var rows = (result.data || []).map(function(t) {
+      if (t.type === 'income') balance += Number(t.amount);
+      else balance -= Number(t.amount);
+      return {
+        'วันที่': t.date,
+        'ประเภท': t.type === 'income' ? 'รายรับ' : 'รายจ่าย',
+        'รายละเอียด': t.description || '',
+        'หมวดหมู่': t.categories ? t.categories.name_th : '',
+        'รายรับ': t.type === 'income' ? Number(t.amount) : 0,
+        'รายจ่าย': t.type === 'expense' ? Number(t.amount) : 0,
+        'ยอดคงเหลือ': balance
+      };
+    });
+    exportToExcel(rows, 'cashflow_' + todayISO());
+    showToast('ส่งออก Excel สำเร็จ');
+  };
+
+  window.toggleSidebar = function() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
+  };
+
+})();
+</script>
+</body>
+</html>

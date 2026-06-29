@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>งบประมาณ</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="supabase-config.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><span class="logo">💼</span><div><div class="brand-name">ระบบบริหารการเงิน</div></div></div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item"><span class="nav-icon">📊</span><span>แดชบอร์ด</span></a>
+      <a href="transactions.html" class="nav-item"><span class="nav-icon">💰</span><span>รายรับ-รายจ่าย</span></a>
+      <a href="reports.html" class="nav-item"><span class="nav-icon">📈</span><span>รายงาน</span></a>
+      <a href="cashflow.html" class="nav-item"><span class="nav-icon">💧</span><span>กระแสเงินสด</span></a>
+      <a href="budget.html" class="nav-item active"><span class="nav-icon">🎯</span><span>งบประมาณ</span></a>
+      <a href="debts.html" class="nav-item"><span class="nav-icon">🤝</span><span>หนี้/ลูกหนี้</span></a>
+      <a href="assets.html" class="nav-item"><span class="nav-icon">🏭</span><span>ทรัพย์สิน</span></a>
+      <a href="admin.html" class="nav-item admin-only"><span class="nav-icon">⚙️</span><span>ผู้ดูแลระบบ</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info"><div class="user-avatar" id="userAvatar">U</div><div><div class="user-name" id="userName">—</div><div class="user-role" id="userRole">—</div></div></div>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">🚪 ออกจากระบบ</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <button class="menu-toggle" onclick="toggleSidebar()" style="display:none;">☰</button>
+      <h1 class="page-title">จัดการงบประมาณ</h1>
+      <div class="header-actions">
+        <button class="btn btn-primary" onclick="openBudgetModal()">➕ ตั้งงบประมาณ</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- KPI -->
+      <div class="kpi-grid" style="margin-bottom:20px;">
+        <div class="kpi-card"><div class="kpi-icon profit">🎯</div><div class="kpi-body"><div class="kpi-label">งบประมาณรวม</div><div class="kpi-value profit" id="bKpiTotal">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon expense">💸</div><div class="kpi-body"><div class="kpi-label">ใช้ไปแล้ว</div><div class="kpi-value expense" id="bKpiUsed">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon income">💚</div><div class="kpi-body"><div class="kpi-label">คงเหลือ</div><div class="kpi-value income" id="bKpiLeft">฿0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon balance">⚠️</div><div class="kpi-body"><div class="kpi-label">เกินงบ</div><div class="kpi-value expense" id="bKpiOver">0 รายการ</div></div></div>
+      </div>
+
+      <!-- Chart -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header"><span class="card-title">ภาพรวมการใช้งบประมาณ</span></div>
+        <canvas id="budgetChart" height="80"></canvas>
+      </div>
+
+      <!-- Period Filter -->
+      <div class="filter-bar" style="margin-bottom:16px;">
+        <select class="form-control" id="bPeriodFilter" style="max-width:200px;" onchange="loadBudgets()">
+          <option value="active">งบประมาณปัจจุบัน</option>
+          <option value="all">ทั้งหมด</option>
+        </select>
+      </div>
+
+      <!-- Budget Cards Grid -->
+      <div id="budgetGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+        <div style="text-align:center;padding:40px;color:#94a3b8;grid-column:1/-1;">กำลังโหลด...</div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- BUDGET MODAL -->
+<div class="modal-overlay" id="budgetModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="budgetModalTitle">ตั้งงบประมาณ</h3>
+      <button class="modal-close" onclick="closeModal('budgetModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="budgetEditId">
+
+      <div class="form-group">
+        <label class="form-label">ชื่องบประมาณ <span class="required">*</span></label>
+        <input type="text" class="form-control" id="fBudgetName" placeholder="เช่น งบค่าการตลาด Q1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมวดหมู่</label>
+        <select class="form-control" id="fBudgetCategory">
+          <option value="">— ทุกหมวดหมู่รายจ่าย —</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วงเงินงบประมาณ <span class="required">*</span></label>
+          <input type="number" class="form-control" id="fBudgetAmount" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">รอบงบประมาณ</label>
+          <select class="form-control" id="fBudgetPeriod" onchange="autoFillDates()">
+            <option value="monthly">รายเดือน</option>
+            <option value="quarterly">รายไตรมาส</option>
+            <option value="yearly">รายปี</option>
+            <option value="custom">กำหนดเอง</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วันเริ่มต้น <span class="required">*</span></label>
+          <input type="date" class="form-control" id="fBudgetStart">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันสิ้นสุด <span class="required">*</span></label>
+          <input type="date" class="form-control" id="fBudgetEnd">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">แจ้งเตือนเมื่อใช้ถึง (%)</label>
+        <input type="number" class="form-control" id="fBudgetAlert" value="80" min="1" max="100">
+        <div style="font-size:12px;color:#94a3b8;margin-top:4px;">ระบบจะแสดงคำเตือนสีเหลืองเมื่อใช้ถึงเปอร์เซ็นต์นี้</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <textarea class="form-control" id="fBudgetNote" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('budgetModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveBudget()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var allBudgets = [];
+  var budgetChartInst = null;
+  var categories = [];
+
+  checkAuth().then(function(session) {
+    if (!session) return;
+    initUI();
+    loadCategories();
+    document.getElementById('fBudgetStart').value = monthStart();
+    document.getElementById('fBudgetEnd').value = monthEnd();
+    loadBudgets();
+  });
+
+  function initUI() {
+    var p = APP.profile;
+    if (!p) return;
+    document.getElementById('userAvatar').textContent = (p.full_name || 'U').charAt(0).toUpperCase();
+    document.getElementById('userName').textContent = p.full_name || p.email;
+    if (p.role !== 'admin') document.querySelectorAll('.admin-only').forEach(function(el) { el.style.display = 'none'; });
+    if (window.innerWidth <= 768) document.querySelector('.menu-toggle').style.display = 'flex';
+  }
+
+  async function loadCategories() {
+    var result = await supabase.from('categories').select('*').eq('type', 'expense').order('name_th');
+    categories = result.data || [];
+    var opts = '<option value="">— ทุกหมวดหมู่รายจ่าย —</option>';
+    categories.forEach(function(c) {
+      opts += '<option value="' + c.id + '">' + c.icon + ' ' + c.name_th + '</option>';
+    });
+    document.getElementById('fBudgetCategory').innerHTML = opts;
+  }
+
+  window.loadBudgets = async function() {
+    var isActive = document.getElementById('bPeriodFilter').value === 'active';
+    var q = supabase.from('budgets').select('*, categories(id, name_th, name_lo, name_en, icon, color)').order('period_start', { ascending: false });
+    if (isActive) {
+      q = q.lte('period_start', todayISO()).gte('period_end', todayISO());
+    }
+    var result = await q;
+    allBudgets = result.data || [];
+    await enrichBudgetsWithSpending();
+    renderBudgets();
+    renderChart();
+    updateKPIs();
+  };
+
+  async function enrichBudgetsWithSpending() {
+    for (var i = 0; i < allBudgets.length; i++) {
+      var b = allBudgets[i];
+      var q = supabase.from('transactions').select('amount').eq('type', 'expense').eq('status', 'completed').gte('date', b.period_start).lte('date', b.period_end);
+      if (b.category_id) q = q.eq('category_id', b.category_id);
+      var res = await q;
+      var spent = 0;
+      (res.data || []).forEach(function(t) { spent += Number(t.amount); });
+      b._spent = spent;
+      b._remaining = Number(b.amount) - spent;
+      b._pct = Math.min((spent / Number(b.amount)) * 100, 100);
+      b._over = spent > Number(b.amount);
+    }
+  }
+
+  function updateKPIs() {
+    var total = 0, used = 0, over = 0;
+    allBudgets.forEach(function(b) {
+      total += Number(b.amount);
+      used += b._spent || 0;
+      if (b._over) over++;
+    });
+    document.getElementById('bKpiTotal').textContent = '฿' + formatMoney(total);
+    document.getElementById('bKpiUsed').textContent = '฿' + formatMoney(used);
+    document.getElementById('bKpiLeft').textContent = '฿' + formatMoney(Math.max(0, total - used));
+    document.getElementById('bKpiOver').textContent = over + ' รายการ';
+  }
+
+  function renderBudgets() {
+    var grid = document.getElementById('budgetGrid');
+    if (!allBudgets.length) {
+      grid.innerHTML = '<div style="text-align:center;padding:60px;color:#94a3b8;grid-column:1/-1;"><div style="font-size:48px;margin-bottom:12px;">🎯</div><div>ยังไม่มีงบประมาณ</div><div style="margin-top:8px;font-size:13px;">คลิก "ตั้งงบประมาณ" เพื่อเริ่มต้น</div></div>';
+      return;
+    }
+
+    grid.innerHTML = allBudgets.map(function(b) {
+      var alertPct = b.alert_threshold || 80;
+      var pct = b._pct || 0;
+      var barColor = pct >= 100 ? '#ef4444' : pct >= alertPct ? '#f59e0b' : '#10b981';
+      var statusBadge = pct >= 100 ? '<span class="badge badge-danger">เกินงบ</span>' : pct >= alertPct ? '<span class="badge badge-warning">ใกล้เต็ม</span>' : '<span class="badge badge-success">ปกติ</span>';
+      var catName = b.categories ? (b.categories.icon + ' ' + b.categories.name_th) : '📋 ทุกหมวดหมู่';
+      var catColor = (b.categories && b.categories.color) || '#6366f1';
+
+      return '<div class="card" style="border-top:4px solid ' + catColor + ';">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">' +
+          '<div>' +
+            '<div style="font-size:15px;font-weight:600;">' + b.name + '</div>' +
+            '<div style="font-size:12px;color:#64748b;margin-top:2px;">' + catName + '</div>' +
+          '</div>' +
+          statusBadge +
+        '</div>' +
+
+        '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">' +
+          '<span style="font-size:13px;color:#64748b;">ใช้ไปแล้ว</span>' +
+          '<span style="font-size:13px;font-weight:600;">฿' + formatMoney(b._spent) + ' / ฿' + formatMoney(b.amount) + '</span>' +
+        '</div>' +
+
+        '<div style="height:12px;background:#f1f5f9;border-radius:6px;overflow:hidden;margin-bottom:8px;">' +
+          '<div style="height:100%;width:' + pct + '%;background:' + barColor + ';border-radius:6px;transition:width .5s;"></div>' +
+        '</div>' +
+
+        '<div style="display:flex;justify-content:space-between;font-size:12px;color:#94a3b8;margin-bottom:12px;">' +
+          '<span>' + pct.toFixed(1) + '% ของงบประมาณ</span>' +
+          '<span>คงเหลือ: ' + (b._remaining >= 0 ? '฿' + formatMoney(b._remaining) : '<span style="color:#ef4444;">เกิน ฿' + formatMoney(Math.abs(b._remaining)) + '</span>') + '</span>' +
+        '</div>' +
+
+        '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;border-top:1px solid #f1f5f9;padding-top:10px;">' +
+          '<span style="color:#94a3b8;">' + formatDate(b.period_start) + ' – ' + formatDate(b.period_end) + '</span>' +
+          (canManage() ?
+            '<div style="display:flex;gap:6px;">' +
+              '<button class="btn btn-outline btn-sm" onclick="editBudget(\'' + b.id + '\')">✏️</button>' +
+              '<button class="btn btn-danger btn-sm" onclick="deleteBudget(\'' + b.id + '\')">🗑️</button>' +
+            '</div>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderChart() {
+    if (!allBudgets.length) return;
+    var labels = allBudgets.map(function(b) { return b.name; });
+    var budgetAmts = allBudgets.map(function(b) { return Number(b.amount); });
+    var spentAmts = allBudgets.map(function(b) { return b._spent || 0; });
+    var colors = allBudgets.map(function(b) {
+      return b._pct >= 100 ? '#ef4444' : b._pct >= (b.alert_threshold || 80) ? '#f59e0b' : '#10b981';
+    });
+
+    if (budgetChartInst) budgetChartInst.destroy();
+    budgetChartInst = new Chart(document.getElementById('budgetChart'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'งบประมาณ', data: budgetAmts, backgroundColor: 'rgba(99,102,241,.2)', borderColor: '#6366f1', borderWidth: 2, borderRadius: 4 },
+          { label: 'ใช้ไปแล้ว', data: spentAmts, backgroundColor: colors, borderRadius: 4 }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { x: { beginAtZero: true, ticks: { callback: function(v) { return '฿' + formatMoney(v, 0); } } } }
+      }
+    });
+  }
+
+  // ============================================
+  // ADD / EDIT
+  // ============================================
+  window.autoFillDates = function() {
+    var period = document.getElementById('fBudgetPeriod').value;
+    var now = new Date();
+    var start, end;
+    if (period === 'monthly') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    } else if (period === 'quarterly') {
+      var q = Math.floor(now.getMonth() / 3);
+      start = new Date(now.getFullYear(), q * 3, 1);
+      end = new Date(now.getFullYear(), q * 3 + 3, 0);
+    } else if (period === 'yearly') {
+      start = new Date(now.getFullYear(), 0, 1);
+      end = new Date(now.getFullYear(), 11, 31);
+    } else { return; }
+    document.getElementById('fBudgetStart').value = start.toISOString().split('T')[0];
+    document.getElementById('fBudgetEnd').value = end.toISOString().split('T')[0];
+  };
+
+  window.openBudgetModal = function() {
+    document.getElementById('budgetEditId').value = '';
+    document.getElementById('budgetModalTitle').textContent = 'ตั้งงบประมาณ';
+    document.getElementById('fBudgetName').value = '';
+    document.getElementById('fBudgetCategory').value = '';
+    document.getElementById('fBudgetAmount').value = '';
+    document.getElementById('fBudgetPeriod').value = 'monthly';
+    document.getElementById('fBudgetStart').value = monthStart();
+    document.getElementById('fBudgetEnd').value = monthEnd();
+    document.getElementById('fBudgetAlert').value = '80';
+    document.getElementById('fBudgetNote').value = '';
+    openModal('budgetModal');
+  };
+
+  window.editBudget = function(id) {
+    var b = allBudgets.find(function(x) { return x.id === id; });
+    if (!b) return;
+    document.getElementById('budgetEditId').value = b.id;
+    document.getElementById('budgetModalTitle').textContent = 'แก้ไขงบประมาณ';
+    document.getElementById('fBudgetName').value = b.name;
+    document.getElementById('fBudgetCategory').value = b.category_id || '';
+    document.getElementById('fBudgetAmount').value = b.amount;
+    document.getElementById('fBudgetPeriod').value = b.period_type;
+    document.getElementById('fBudgetStart').value = b.period_start;
+    document.getElementById('fBudgetEnd').value = b.period_end;
+    document.getElementById('fBudgetAlert').value = b.alert_threshold || 80;
+    document.getElementById('fBudgetNote').value = b.note || '';
+    openModal('budgetModal');
+  };
+
+  window.saveBudget = async function() {
+    var name = document.getElementById('fBudgetName').value.trim();
+    var amount = parseFloat(document.getElementById('fBudgetAmount').value);
+    var start = document.getElementById('fBudgetStart').value;
+    var end = document.getElementById('fBudgetEnd').value;
+
+    if (!name) { showToast('กรุณาระบุชื่องบประมาณ', 'error'); return; }
+    if (!amount || amount <= 0) { showToast('กรุณาระบุวงเงิน', 'error'); return; }
+    if (!start || !end) { showToast('กรุณาระบุช่วงเวลา', 'error'); return; }
+
+    var data = {
+      name: name,
+      category_id: document.getElementById('fBudgetCategory').value || null,
+      amount: amount,
+      period_type: document.getElementById('fBudgetPeriod').value,
+      period_start: start,
+      period_end: end,
+      alert_threshold: parseFloat(document.getElementById('fBudgetAlert').value) || 80,
+      note: document.getElementById('fBudgetNote').value.trim() || null
+    };
+
+    var editId = document.getElementById('budgetEditId').value;
+    var result;
+    if (editId) {
+      result = await supabase.from('budgets').update(data).eq('id', editId);
+    } else {
+      data.created_by = APP.user.id;
+      result = await supabase.from('budgets').insert([data]);
+    }
+
+    if (result.error) { showToast('เกิดข้อผิดพลาด: ' + result.error.message, 'error'); }
+    else { showToast('บันทึกสำเร็จ'); closeModal('budgetModal'); loadBudgets(); }
+  };
+
+  window.deleteBudget = async function(id) {
+    if (!confirm('ลบงบประมาณนี้?')) return;
+    var result = await supabase.from('budgets').delete().eq('id', id);
+    if (result.error) { showToast('เกิดข้อผิดพลาด', 'error'); }
+    else { showToast('ลบสำเร็จ'); loadBudgets(); }
+  };
+
+  window.toggleSidebar = function() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
+  };
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>รายงาน</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="supabase-config.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><span class="logo">💼</span><div><div class="brand-name">ระบบบริหารการเงิน</div></div></div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item"><span class="nav-icon">📊</span><span>แดชบอร์ด</span></a>
+      <a href="transactions.html" class="nav-item"><span class="nav-icon">💰</span><span>รายรับ-รายจ่าย</span></a>
+      <a href="reports.html" class="nav-item active"><span class="nav-icon">📈</span><span>รายงาน</span></a>
+      <a href="cashflow.html" class="nav-item"><span class="nav-icon">💧</span><span>กระแสเงินสด</span></a>
+      <a href="budget.html" class="nav-item"><span class="nav-icon">🎯</span><span>งบประมาณ</span></a>
+      <a href="debts.html" class="nav-item"><span class="nav-icon">🤝</span><span>หนี้/ลูกหนี้</span></a>
+      <a href="assets.html" class="nav-item"><span class="nav-icon">🏭</span><span>ทรัพย์สิน</span></a>
+      <a href="admin.html" class="nav-item admin-only"><span class="nav-icon">⚙️</span><span>ผู้ดูแลระบบ</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info"><div class="user-avatar" id="userAvatar">U</div><div><div class="user-name" id="userName">—</div><div class="user-role" id="userRole">—</div></div></div>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">🚪 ออกจากระบบ</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <button class="menu-toggle" onclick="toggleSidebar()" style="display:none;">☰</button>
+      <h1 class="page-title">รายงานและวิเคราะห์</h1>
+      <div class="header-actions">
+        <button class="btn btn-outline btn-sm" onclick="doExportExcel()">📊 Excel</button>
+        <button class="btn btn-outline btn-sm" onclick="doExportPDF()">📄 PDF</button>
+      </div>
+    </header>
+
+    <main class="page-content" id="reportContent">
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab-item active" onclick="setReportTab('pnl')" id="tabPnl">กำไร-ขาดทุน</div>
+        <div class="tab-item" onclick="setReportTab('category')" id="tabCategory">ตามหมวดหมู่</div>
+        <div class="tab-item" onclick="setReportTab('trend')" id="tabTrend">แนวโน้ม</div>
+        <div class="tab-item" onclick="setReportTab('cost')" id="tabCost">ต้นทุน & ROI</div>
+      </div>
+
+      <!-- Filter -->
+      <div class="filter-bar">
+        <select class="form-control" id="reportPeriod" onchange="onPeriodChange()" style="max-width:160px;">
+          <option value="month">เดือนนี้</option>
+          <option value="quarter">ไตรมาสนี้</option>
+          <option value="year" selected>ปีนี้</option>
+          <option value="custom">กำหนดเอง</option>
+        </select>
+        <div id="reportCustomRange" style="display:none;gap:8px;display:none;">
+          <input type="date" class="form-control" id="reportFrom" style="max-width:150px;">
+          <input type="date" class="form-control" id="reportTo" style="max-width:150px;">
+          <button class="btn btn-outline" onclick="loadReport()">🔍</button>
+        </div>
+        <select class="form-control" id="reportYear" style="max-width:120px;" onchange="loadReport()"></select>
+      </div>
+
+      <!-- P&L Report Tab -->
+      <div id="pnlTab">
+        <!-- KPI Summary -->
+        <div class="kpi-grid" style="margin-bottom:20px;">
+          <div class="kpi-card"><div class="kpi-icon income">💚</div><div class="kpi-body"><div class="kpi-label">รายรับรวม</div><div class="kpi-value income" id="rpIncome">฿0</div></div></div>
+          <div class="kpi-card"><div class="kpi-icon expense">❤️</div><div class="kpi-body"><div class="kpi-label">รายจ่ายรวม</div><div class="kpi-value expense" id="rpExpense">฿0</div></div></div>
+          <div class="kpi-card"><div class="kpi-icon profit">💜</div><div class="kpi-body"><div class="kpi-label">กำไรขั้นต้น</div><div class="kpi-value profit" id="rpGross">฿0</div></div></div>
+          <div class="kpi-card"><div class="kpi-icon balance">💛</div><div class="kpi-body"><div class="kpi-label">อัตรากำไร</div><div class="kpi-value balance" id="rpMargin">0%</div></div></div>
+        </div>
+
+        <!-- Monthly P&L Table -->
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header"><span class="card-title">สรุปรายได้-รายจ่ายรายเดือน</span></div>
+          <div class="table-wrapper">
+            <table class="table" id="pnlTable">
+              <thead>
+                <tr>
+                  <th>เดือน</th>
+                  <th class="text-right">รายรับ</th>
+                  <th class="text-right">รายจ่าย</th>
+                  <th class="text-right">กำไร/ขาดทุน</th>
+                  <th class="text-right">อัตรากำไร</th>
+                </tr>
+              </thead>
+              <tbody id="pnlBody">
+                <tr><td colspan="5" style="text-align:center;padding:30px;color:#94a3b8;">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Line Chart -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">กราฟกำไร-ขาดทุนรายเดือน</span></div>
+          <canvas id="pnlChart" height="100"></canvas>
+        </div>
+      </div>
+
+      <!-- Category Tab -->
+      <div id="categoryTab" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+          <div class="card">
+            <div class="card-header"><span class="card-title">รายรับตามหมวดหมู่</span></div>
+            <canvas id="incomeDonut" height="200"></canvas>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">รายจ่ายตามหมวดหมู่</span></div>
+            <canvas id="expenseDonut" height="200"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">รายละเอียดตามหมวดหมู่</span></div>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead><tr><th>หมวดหมู่</th><th>ประเภท</th><th class="text-right">จำนวนรายการ</th><th class="text-right">ยอดรวม</th><th class="text-right">สัดส่วน</th></tr></thead>
+              <tbody id="categoryBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trend Tab -->
+      <div id="trendTab" style="display:none;">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header"><span class="card-title">แนวโน้มรายรับ-รายจ่าย (12 เดือนล่าสุด)</span></div>
+          <canvas id="trendChart" height="100"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">การวิเคราะห์แนวโน้ม</span></div>
+          <div id="trendAnalysis" style="padding:16px;"></div>
+        </div>
+      </div>
+
+      <!-- Cost & ROI Tab -->
+      <div id="costTab" style="display:none;">
+        <div class="kpi-grid" style="margin-bottom:20px;">
+          <div class="kpi-card"><div class="kpi-icon expense">📦</div><div class="kpi-body"><div class="kpi-label">ต้นทุนสินค้า (COGS)</div><div class="kpi-value expense" id="rpCOGS">฿0</div></div></div>
+          <div class="kpi-card"><div class="kpi-icon balance">🏢</div><div class="kpi-body"><div class="kpi-label">ต้นทุนดำเนินงาน</div><div class="kpi-value balance" id="rpOpex">฿0</div></div></div>
+          <div class="kpi-card"><div class="kpi-icon profit">📊</div><div class="kpi-body"><div class="kpi-label">กำไรขั้นต้น</div><div class="kpi-value profit" id="rpGross2">฿0</div></div></div>
+          <div class="kpi-card"><div class="kpi-icon income">🎯</div><div class="kpi-body"><div class="kpi-label">ROI</div><div class="kpi-value income" id="rpROI">0%</div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">วิเคราะห์ต้นทุนและผลตอบแทน</span></div>
+          <div id="costAnalysis" style="padding:8px;"></div>
+        </div>
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header"><span class="card-title">กราฟต้นทุน</span></div>
+          <canvas id="costChart" height="100"></canvas>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var currentReportTab = 'pnl';
+  var pnlChartInst = null;
+  var incomeDonutInst = null;
+  var expenseDonutInst = null;
+  var trendChartInst = null;
+  var costChartInst = null;
+
+  checkAuth().then(function(session) {
+    if (!session) return;
+    initUI();
+    initYearSelect();
+    loadReport();
+  });
+
+  function initUI() {
+    var p = APP.profile;
+    if (!p) return;
+    document.getElementById('userAvatar').textContent = (p.full_name || 'U').charAt(0).toUpperCase();
+    document.getElementById('userName').textContent = p.full_name || p.email;
+    if (p.role !== 'admin') document.querySelectorAll('.admin-only').forEach(function(el) { el.style.display = 'none'; });
+    if (window.innerWidth <= 768) document.querySelector('.menu-toggle').style.display = 'flex';
+  }
+
+  function initYearSelect() {
+    var year = new Date().getFullYear();
+    var sel = document.getElementById('reportYear');
+    var opts = '';
+    for (var y = year; y >= year - 5; y--) {
+      opts += '<option value="' + y + '"' + (y === year ? ' selected' : '') + '>' + (APP.lang === 'th' ? 'ปี ' + (y + 543) : 'Year ' + y) + '</option>';
+    }
+    sel.innerHTML = opts;
+  }
+
+  window.setReportTab = function(tab) {
+    currentReportTab = tab;
+    ['pnl', 'category', 'trend', 'cost'].forEach(function(t) {
+      document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+      document.getElementById(t + 'Tab').style.display = t === tab ? '' : 'none';
+    });
+    loadReport();
+  };
+
+  window.onPeriodChange = function() {
+    var isCustom = document.getElementById('reportPeriod').value === 'custom';
+    document.getElementById('reportCustomRange').style.display = isCustom ? 'flex' : 'none';
+    if (!isCustom) loadReport();
+  };
+
+  function getReportRange() {
+    var period = document.getElementById('reportPeriod').value;
+    var year = parseInt(document.getElementById('reportYear').value);
+    var from, to;
+    var now = new Date();
+
+    if (period === 'month') {
+      from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    } else if (period === 'quarter') {
+      var q = Math.floor(now.getMonth() / 3);
+      from = new Date(now.getFullYear(), q * 3, 1).toISOString().split('T')[0];
+      to = new Date(now.getFullYear(), q * 3 + 3, 0).toISOString().split('T')[0];
+    } else if (period === 'year') {
+      from = year + '-01-01';
+      to = year + '-12-31';
+    } else {
+      from = document.getElementById('reportFrom').value || yearStart();
+      to = document.getElementById('reportTo').value || todayISO();
+    }
+    return { from: from, to: to };
+  }
+
+  window.loadReport = async function() {
+    if (currentReportTab === 'pnl') await loadPnL();
+    else if (currentReportTab === 'category') await loadCategoryReport();
+    else if (currentReportTab === 'trend') await loadTrend();
+    else if (currentReportTab === 'cost') await loadCostROI();
+  };
+
+  // ============================================
+  // P&L REPORT
+  // ============================================
+  async function loadPnL() {
+    var range = getReportRange();
+    var result = await supabase
+      .from('transactions')
+      .select('type, amount, date')
+      .eq('status', 'completed')
+      .gte('date', range.from)
+      .lte('date', range.to);
+
+    var data = result.data || [];
+    var totalIncome = 0, totalExpense = 0;
+    var monthMap = {};
+
+    data.forEach(function(t) {
+      var m = t.date.substring(0, 7);
+      if (!monthMap[m]) monthMap[m] = { income: 0, expense: 0 };
+      if (t.type === 'income') { totalIncome += Number(t.amount); monthMap[m].income += Number(t.amount); }
+      else { totalExpense += Number(t.amount); monthMap[m].expense += Number(t.amount); }
+    });
+
+    var profit = totalIncome - totalExpense;
+    var margin = totalIncome > 0 ? (profit / totalIncome * 100) : 0;
+
+    document.getElementById('rpIncome').textContent = '฿' + formatMoney(totalIncome);
+    document.getElementById('rpExpense').textContent = '฿' + formatMoney(totalExpense);
+    document.getElementById('rpGross').textContent = (profit >= 0 ? '' : '-') + '฿' + formatMoney(Math.abs(profit));
+    document.getElementById('rpGross').className = 'kpi-value ' + (profit >= 0 ? 'profit' : 'expense');
+    document.getElementById('rpMargin').textContent = margin.toFixed(1) + '%';
+
+    // Monthly table
+    var months = Object.keys(monthMap).sort();
+    var tbody = document.getElementById('pnlBody');
+    if (months.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:#94a3b8;">ไม่มีข้อมูล</td></tr>';
+    } else {
+      tbody.innerHTML = months.map(function(m) {
+        var d = monthMap[m];
+        var p = d.income - d.expense;
+        var mg = d.income > 0 ? (p / d.income * 100) : 0;
+        var mDate = new Date(m + '-01');
+        var mLabel = mDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'long' });
+        return '<tr>' +
+          '<td>' + mLabel + '</td>' +
+          '<td class="text-right text-income">฿' + formatMoney(d.income) + '</td>' +
+          '<td class="text-right text-expense">฿' + formatMoney(d.expense) + '</td>' +
+          '<td class="text-right ' + (p >= 0 ? 'text-profit' : 'text-expense') + '">' + (p >= 0 ? '' : '-') + '฿' + formatMoney(Math.abs(p)) + '</td>' +
+          '<td class="text-right">' + mg.toFixed(1) + '%</td>' +
+        '</tr>';
+      }).join('') +
+      '<tr style="font-weight:700;background:#f8fafc;">' +
+        '<td>รวมทั้งหมด</td>' +
+        '<td class="text-right text-income">฿' + formatMoney(totalIncome) + '</td>' +
+        '<td class="text-right text-expense">฿' + formatMoney(totalExpense) + '</td>' +
+        '<td class="text-right ' + (profit >= 0 ? 'text-profit' : 'text-expense') + '">' + (profit >= 0 ? '' : '-') + '฿' + formatMoney(Math.abs(profit)) + '</td>' +
+        '<td class="text-right">' + margin.toFixed(1) + '%</td>' +
+      '</tr>';
+    }
+
+    // Chart
+    if (pnlChartInst) pnlChartInst.destroy();
+    pnlChartInst = new Chart(document.getElementById('pnlChart'), {
+      type: 'line',
+      data: {
+        labels: months.map(function(m) { return new Date(m + '-01').toLocaleDateString('th-TH', { month: 'short', year: '2-digit' }); }),
+        datasets: [
+          { label: 'รายรับ', data: months.map(function(m) { return monthMap[m].income; }), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.1)', tension: .4, fill: true },
+          { label: 'รายจ่าย', data: months.map(function(m) { return monthMap[m].expense; }), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,.1)', tension: .4, fill: true },
+          { label: 'กำไร', data: months.map(function(m) { return monthMap[m].income - monthMap[m].expense; }), borderColor: '#6366f1', borderDash: [5,5], tension: .4 }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { y: { ticks: { callback: function(v) { return '฿' + formatMoney(v, 0); } } } }
+      }
+    });
+  }
+
+  // ============================================
+  // CATEGORY REPORT
+  // ============================================
+  async function loadCategoryReport() {
+    var range = getReportRange();
+    var result = await supabase
+      .from('transactions')
+      .select('type, amount, categories(name_th, name_lo, name_en, icon, color)')
+      .eq('status', 'completed')
+      .gte('date', range.from)
+      .lte('date', range.to);
+
+    var incMap = {}, expMap = {};
+    var totalInc = 0, totalExp = 0;
+
+    (result.data || []).forEach(function(t) {
+      var catName = t.categories ? (APP.lang === 'lo' ? t.categories.name_lo : APP.lang === 'en' ? t.categories.name_en : t.categories.name_th) || 'อื่น ๆ' : 'ไม่มีหมวดหมู่';
+      var color = (t.categories && t.categories.color) || '#94a3b8';
+      var icon = (t.categories && t.categories.icon) || '📋';
+      var key = icon + ' ' + catName;
+
+      if (t.type === 'income') {
+        if (!incMap[key]) incMap[key] = { total: 0, count: 0, color: color };
+        incMap[key].total += Number(t.amount);
+        incMap[key].count++;
+        totalInc += Number(t.amount);
+      } else {
+        if (!expMap[key]) expMap[key] = { total: 0, count: 0, color: color };
+        expMap[key].total += Number(t.amount);
+        expMap[key].count++;
+        totalExp += Number(t.amount);
+      }
+    });
+
+    // Income donut
+    if (incomeDonutInst) incomeDonutInst.destroy();
+    var incKeys = Object.keys(incMap).sort(function(a,b) { return incMap[b].total - incMap[a].total; });
+    if (incKeys.length > 0) {
+      incomeDonutInst = new Chart(document.getElementById('incomeDonut'), {
+        type: 'doughnut',
+        data: {
+          labels: incKeys,
+          datasets: [{ data: incKeys.map(function(k) { return incMap[k].total; }), backgroundColor: incKeys.map(function(k) { return incMap[k].color; }) }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+      });
+    }
+
+    // Expense donut
+    if (expenseDonutInst) expenseDonutInst.destroy();
+    var expKeys = Object.keys(expMap).sort(function(a,b) { return expMap[b].total - expMap[a].total; });
+    if (expKeys.length > 0) {
+      expenseDonutInst = new Chart(document.getElementById('expenseDonut'), {
+        type: 'doughnut',
+        data: {
+          labels: expKeys,
+          datasets: [{ data: expKeys.map(function(k) { return expMap[k].total; }), backgroundColor: expKeys.map(function(k) { return expMap[k].color; }) }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+      });
+    }
+
+    // Table
+    var allCats = [];
+    incKeys.forEach(function(k) { allCats.push({ name: k, type: 'income', count: incMap[k].count, total: incMap[k].total, pct: totalInc > 0 ? incMap[k].total / totalInc * 100 : 0 }); });
+    expKeys.forEach(function(k) { allCats.push({ name: k, type: 'expense', count: expMap[k].count, total: expMap[k].total, pct: totalExp > 0 ? expMap[k].total / totalExp * 100 : 0 }); });
+    allCats.sort(function(a,b) { return b.total - a.total; });
+
+    document.getElementById('categoryBody').innerHTML = allCats.length === 0 ?
+      '<tr><td colspan="5" style="text-align:center;padding:30px;color:#94a3b8;">ไม่มีข้อมูล</td></tr>' :
+      allCats.map(function(c) {
+        return '<tr>' +
+          '<td>' + c.name + '</td>' +
+          '<td>' + (c.type === 'income' ? '<span class="badge badge-success">รายรับ</span>' : '<span class="badge badge-danger">รายจ่าย</span>') + '</td>' +
+          '<td class="text-right">' + c.count + '</td>' +
+          '<td class="text-right ' + (c.type === 'income' ? 'text-income' : 'text-expense') + '">฿' + formatMoney(c.total) + '</td>' +
+          '<td class="text-right">' + c.pct.toFixed(1) + '%</td>' +
+        '</tr>';
+      }).join('');
+  }
+
+  // ============================================
+  // TREND REPORT
+  // ============================================
+  async function loadTrend() {
+    var months = [], labels = [];
+    var incData = [], expData = [], profitData = [];
+
+    for (var i = 11; i >= 0; i--) {
+      var d = new Date();
+      d.setMonth(d.getMonth() - i);
+      var mStart = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+      var mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+      labels.push(d.toLocaleDateString('th-TH', { month: 'short', year: '2-digit' }));
+
+      var res = await supabase.from('transactions').select('type,amount').eq('status','completed').gte('date',mStart).lte('date',mEnd);
+      var inc = 0, exp = 0;
+      (res.data || []).forEach(function(t) {
+        if (t.type === 'income') inc += Number(t.amount);
+        else exp += Number(t.amount);
+      });
+      incData.push(inc);
+      expData.push(exp);
+      profitData.push(inc - exp);
+    }
+
+    if (trendChartInst) trendChartInst.destroy();
+    trendChartInst = new Chart(document.getElementById('trendChart'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'รายรับ', data: incData, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.08)', tension: .4, fill: true },
+          { label: 'รายจ่าย', data: expData, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,.08)', tension: .4, fill: true },
+          { label: 'กำไร', data: profitData, borderColor: '#6366f1', tension: .4 }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { y: { ticks: { callback: function(v) { return '฿' + formatMoney(v, 0); } } } }
+      }
+    });
+
+    // Trend analysis
+    var lastInc = incData[incData.length - 1], prevInc = incData[incData.length - 2] || 0;
+    var lastExp = expData[expData.length - 1], prevExp = expData[expData.length - 2] || 0;
+    var incChange = prevInc > 0 ? ((lastInc - prevInc) / prevInc * 100).toFixed(1) : 0;
+    var expChange = prevExp > 0 ? ((lastExp - prevExp) / prevExp * 100).toFixed(1) : 0;
+
+    var avgInc = incData.reduce(function(a,b){return a+b;}, 0) / incData.length;
+    var avgExp = expData.reduce(function(a,b){return a+b;}, 0) / expData.length;
+
+    document.getElementById('trendAnalysis').innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">' +
+        '<div style="padding:16px;background:#f8fafc;border-radius:8px;">' +
+          '<div style="font-size:12px;color:#64748b;margin-bottom:8px;">📊 รายรับเฉลี่ย/เดือน</div>' +
+          '<div style="font-size:20px;font-weight:700;color:#10b981;">฿' + formatMoney(avgInc, 0) + '</div>' +
+          '<div style="font-size:12px;color:' + (incChange >= 0 ? '#10b981' : '#ef4444') + ';margin-top:4px;">' + (incChange >= 0 ? '▲' : '▼') + ' ' + Math.abs(incChange) + '% จากเดือนก่อน</div>' +
+        '</div>' +
+        '<div style="padding:16px;background:#f8fafc;border-radius:8px;">' +
+          '<div style="font-size:12px;color:#64748b;margin-bottom:8px;">📉 รายจ่ายเฉลี่ย/เดือน</div>' +
+          '<div style="font-size:20px;font-weight:700;color:#ef4444;">฿' + formatMoney(avgExp, 0) + '</div>' +
+          '<div style="font-size:12px;color:' + (expChange <= 0 ? '#10b981' : '#ef4444') + ';margin-top:4px;">' + (expChange >= 0 ? '▲' : '▼') + ' ' + Math.abs(expChange) + '% จากเดือนก่อน</div>' +
+        '</div>' +
+        '<div style="padding:16px;background:#f8fafc;border-radius:8px;">' +
+          '<div style="font-size:12px;color:#64748b;margin-bottom:8px;">💰 กำไรเฉลี่ย/เดือน</div>' +
+          '<div style="font-size:20px;font-weight:700;color:#6366f1;">฿' + formatMoney(avgInc - avgExp, 0) + '</div>' +
+          '<div style="font-size:12px;color:#64748b;margin-top:4px;">อัตรากำไรเฉลี่ย: ' + (avgInc > 0 ? ((avgInc - avgExp) / avgInc * 100).toFixed(1) : 0) + '%</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  // ============================================
+  // COST & ROI
+  // ============================================
+  async function loadCostROI() {
+    var range = getReportRange();
+
+    // COGS = ต้นทุนสินค้า category
+    var cogsResult = await supabase
+      .from('transactions')
+      .select('amount, categories(name_th)')
+      .eq('type', 'expense')
+      .eq('status', 'completed')
+      .gte('date', range.from)
+      .lte('date', range.to);
+
+    var cogs = 0, opex = 0, totalIncome = 0;
+    var cogsMap = {}, opexMap = {};
+
+    (cogsResult.data || []).forEach(function(t) {
+      var catName = (t.categories && t.categories.name_th) || '';
+      var amt = Number(t.amount);
+      if (catName.includes('ต้นทุน') || catName.toLowerCase().includes('cogs')) {
+        cogs += amt;
+        cogsMap[catName] = (cogsMap[catName] || 0) + amt;
+      } else {
+        opex += amt;
+        opexMap[catName] = (opexMap[catName] || 0) + amt;
+      }
+    });
+
+    var incResult = await supabase.from('transactions').select('amount').eq('type','income').eq('status','completed').gte('date',range.from).lte('date',range.to);
+    (incResult.data || []).forEach(function(t) { totalIncome += Number(t.amount); });
+
+    var grossProfit = totalIncome - cogs;
+    var netProfit = totalIncome - cogs - opex;
+    var roi = (cogs + opex) > 0 ? (netProfit / (cogs + opex) * 100) : 0;
+
+    document.getElementById('rpCOGS').textContent = '฿' + formatMoney(cogs);
+    document.getElementById('rpOpex').textContent = '฿' + formatMoney(opex);
+    document.getElementById('rpGross2').textContent = (grossProfit >= 0 ? '' : '-') + '฿' + formatMoney(Math.abs(grossProfit));
+    document.getElementById('rpROI').textContent = roi.toFixed(1) + '%';
+
+    document.getElementById('costAnalysis').innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">' +
+        '<div>' +
+          '<h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">📦 โครงสร้างต้นทุน</h4>' +
+          '<table style="width:100%;font-size:13px;">' +
+            '<tr><td>รายรับรวม</td><td style="text-align:right;font-weight:600;color:#10b981;">฿' + formatMoney(totalIncome) + '</td></tr>' +
+            '<tr><td>ต้นทุนสินค้า (COGS)</td><td style="text-align:right;color:#ef4444;">-฿' + formatMoney(cogs) + '</td></tr>' +
+            '<tr style="border-top:1px solid #e2e8f0;"><td style="font-weight:600;">กำไรขั้นต้น</td><td style="text-align:right;font-weight:600;color:#6366f1;">฿' + formatMoney(grossProfit) + '</td></tr>' +
+            '<tr><td>ค่าใช้จ่ายดำเนินงาน (OPEX)</td><td style="text-align:right;color:#ef4444;">-฿' + formatMoney(opex) + '</td></tr>' +
+            '<tr style="border-top:2px solid #e2e8f0;"><td style="font-weight:700;">กำไรสุทธิ</td><td style="text-align:right;font-weight:700;color:' + (netProfit >= 0 ? '#10b981' : '#ef4444') + ';">฿' + formatMoney(netProfit) + '</td></tr>' +
+          '</table>' +
+        '</div>' +
+        '<div>' +
+          '<h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">📊 อัตราส่วนสำคัญ</h4>' +
+          '<div style="display:flex;flex-direction:column;gap:10px;">' +
+            '<div style="padding:10px;background:#f0fdf4;border-radius:8px;"><div style="font-size:11px;color:#64748b;">อัตรากำไรขั้นต้น</div><div style="font-size:18px;font-weight:700;color:#10b981;">' + (totalIncome > 0 ? (grossProfit/totalIncome*100).toFixed(1) : 0) + '%</div></div>' +
+            '<div style="padding:10px;background:#eff6ff;border-radius:8px;"><div style="font-size:11px;color:#64748b;">อัตรากำไรสุทธิ</div><div style="font-size:18px;font-weight:700;color:#6366f1;">' + (totalIncome > 0 ? (netProfit/totalIncome*100).toFixed(1) : 0) + '%</div></div>' +
+            '<div style="padding:10px;background:#fefce8;border-radius:8px;"><div style="font-size:11px;color:#64748b;">ROI (ผลตอบแทนต่อต้นทุน)</div><div style="font-size:18px;font-weight:700;color:#f59e0b;">' + roi.toFixed(1) + '%</div></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    // Cost chart
+    if (costChartInst) costChartInst.destroy();
+    costChartInst = new Chart(document.getElementById('costChart'), {
+      type: 'bar',
+      data: {
+        labels: ['รายรับ', 'ต้นทุนสินค้า', 'ค่าดำเนินงาน', 'กำไรสุทธิ'],
+        datasets: [{
+          data: [totalIncome, cogs, opex, netProfit],
+          backgroundColor: ['#10b981', '#ef4444', '#f59e0b', netProfit >= 0 ? '#6366f1' : '#ef4444'],
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '฿' + formatMoney(v, 0); } } } }
+      }
+    });
+  }
+
+  // ============================================
+  // EXPORT
+  // ============================================
+  window.doExportExcel = async function() {
+    var range = getReportRange();
+    var result = await supabase.from('transactions').select('*, categories(name_th)').eq('status','completed').gte('date',range.from).lte('date',range.to).order('date');
+    var rows = (result.data || []).map(function(t) {
+      return { 'วันที่': t.date, 'ประเภท': t.type === 'income' ? 'รายรับ' : 'รายจ่าย', 'หมวดหมู่': t.categories ? t.categories.name_th : '', 'รายละเอียด': t.description || '', 'จำนวน': Number(t.amount) };
+    });
+    exportToExcel(rows, 'report_' + todayISO());
+    showToast('ส่งออก Excel สำเร็จ');
+  };
+
+  window.doExportPDF = async function() {
+    await exportToPDF('reportContent', 'report_' + todayISO());
+    showToast('ส่งออก PDF สำเร็จ');
+  };
+
+  window.toggleSidebar = function() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
+  };
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบบริหารการเงิน</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="supabase-config.js"></script>
+</head>
+<body>
+
+<!-- ============================================
+     LOGIN PAGE
+     ============================================ -->
+<div id="loginPage" class="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-icon">💼</div>
+      <h1>ระบบบริหารการเงิน</h1>
+      <p>Finance Management System</p>
+    </div>
+
+    <!-- Lang switcher on login -->
+    <div class="lang-switcher" style="justify-content:center;margin-bottom:20px;">
+      <button class="lang-btn active" onclick="switchLangLogin('th')">ไทย</button>
+      <button class="lang-btn" onclick="switchLangLogin('lo')">ລາວ</button>
+      <button class="lang-btn" onclick="switchLangLogin('en')">EN</button>
+    </div>
+
+    <div id="loginError" style="display:none;background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;"></div>
+
+    <div class="form-group">
+      <label class="form-label" id="lblEmail">อีเมล</label>
+      <input type="email" id="loginEmail" class="form-control" placeholder="example@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label" id="lblPassword">รหัสผ่าน</label>
+      <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()" id="loginBtn">
+      🔐 <span id="loginBtnText">เข้าสู่ระบบ</span>
+    </button>
+
+    <p style="text-align:center;margin-top:16px;font-size:12px;color:#94a3b8;" id="loginNote">
+      ติดต่อผู้ดูแลระบบเพื่อสมัครบัญชี
+    </p>
+  </div>
+</div>
+
+<!-- ============================================
+     MAIN APP (Dashboard)
+     ============================================ -->
+<div id="appPage" class="app-layout" style="display:none;">
+
+  <!-- Sidebar Overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="logo">💼</span>
+      <div>
+        <div class="brand-name" id="sidebarBrand">ระบบบริหารการเงิน</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-label" id="navLabelMain">หลัก</div>
+      <a href="index.html" class="nav-item active">
+        <span class="nav-icon">📊</span>
+        <span id="navDashboard">แดชบอร์ด</span>
+      </a>
+      <a href="transactions.html" class="nav-item">
+        <span class="nav-icon">💰</span>
+        <span id="navTransactions">รายรับ-รายจ่าย</span>
+      </a>
+
+      <div class="nav-label" id="navLabelAnalysis">วิเคราะห์</div>
+      <a href="reports.html" class="nav-item">
+        <span class="nav-icon">📈</span>
+        <span id="navReports">รายงาน</span>
+      </a>
+      <a href="cashflow.html" class="nav-item">
+        <span class="nav-icon">💧</span>
+        <span id="navCashflow">กระแสเงินสด</span>
+      </a>
+      <a href="budget.html" class="nav-item">
+        <span class="nav-icon">🎯</span>
+        <span id="navBudget">งบประมาณ</span>
+      </a>
+
+      <div class="nav-label" id="navLabelManage">จัดการ</div>
+      <a href="debts.html" class="nav-item">
+        <span class="nav-icon">🤝</span>
+        <span id="navDebts">หนี้/ลูกหนี้</span>
+      </a>
+      <a href="assets.html" class="nav-item">
+        <span class="nav-icon">🏭</span>
+        <span id="navAssets">ทรัพย์สิน</span>
+      </a>
+
+      <div class="nav-label admin-only" id="navLabelAdmin">ผู้ดูแล</div>
+      <a href="admin.html" class="nav-item admin-only">
+        <span class="nav-icon">⚙️</span>
+        <span id="navAdmin">ผู้ดูแลระบบ</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-info" onclick="toggleUserMenu()">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div>
+          <div class="user-name" id="userName">—</div>
+          <div class="user-role" id="userRole">—</div>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">
+        🚪 <span id="logoutBtn">ออกจากระบบ</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Header -->
+    <header class="top-header">
+      <button class="menu-toggle" onclick="toggleSidebar()" style="display:none;">☰</button>
+      <h1 class="page-title" id="pageTitle">แดชบอร์ด</h1>
+      <div class="header-actions">
+        <div class="lang-switcher">
+          <button class="lang-btn active" id="langBtnTh" onclick="switchLang('th')">ไทย</button>
+          <button class="lang-btn" id="langBtnLo" onclick="switchLang('lo')">ລາວ</button>
+          <button class="lang-btn" id="langBtnEn" onclick="switchLang('en')">EN</button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="location.href='transactions.html'">
+          ➕ <span id="btnAddTx">เพิ่มรายการ</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main class="page-content">
+
+      <!-- Period Filter -->
+      <div class="filter-bar">
+        <select class="form-control" id="periodFilter" onchange="loadDashboard()" style="max-width:160px;">
+          <option value="month" id="optMonth">เดือนนี้</option>
+          <option value="year" id="optYear">ปีนี้</option>
+          <option value="custom" id="optCustom">กำหนดเอง</option>
+        </select>
+        <div id="customDateRange" style="display:none;display:flex;gap:8px;">
+          <input type="date" class="form-control" id="dateFrom" style="max-width:150px;">
+          <input type="date" class="form-control" id="dateTo" style="max-width:150px;">
+          <button class="btn btn-outline" onclick="loadDashboard()">🔍</button>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon income">💚</div>
+          <div class="kpi-body">
+            <div class="kpi-label" id="kpiLabelIncome">รายรับทั้งหมด</div>
+            <div class="kpi-value income" id="kpiIncome">฿0</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon expense">❤️</div>
+          <div class="kpi-body">
+            <div class="kpi-label" id="kpiLabelExpense">รายจ่ายทั้งหมด</div>
+            <div class="kpi-value expense" id="kpiExpense">฿0</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon profit">💜</div>
+          <div class="kpi-body">
+            <div class="kpi-label" id="kpiLabelProfit">กำไรสุทธิ</div>
+            <div class="kpi-value profit" id="kpiProfit">฿0</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon balance">💛</div>
+          <div class="kpi-body">
+            <div class="kpi-label" id="kpiLabelBalance">ยอดคงเหลือ</div>
+            <div class="kpi-value balance" id="kpiBalance">฿0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px;">
+
+        <!-- Income vs Expense Bar Chart -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title" id="chartTitle1">รายรับ vs รายจ่าย (รายเดือน)</span>
+          </div>
+          <canvas id="barChart" height="200"></canvas>
+        </div>
+
+        <!-- Category Pie Chart -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title" id="chartTitle2">รายจ่ายตามหมวดหมู่</span>
+          </div>
+          <canvas id="pieChart" height="200"></canvas>
+        </div>
+
+      </div>
+
+      <!-- Bottom row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+        <!-- Recent Transactions -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title" id="recentTxTitle">รายการล่าสุด</span>
+            <a href="transactions.html" class="btn btn-outline btn-sm" id="viewAllBtn">ดูทั้งหมด →</a>
+          </div>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th id="thDate">วันที่</th>
+                  <th id="thDesc">รายการ</th>
+                  <th class="text-right" id="thAmt">จำนวน</th>
+                </tr>
+              </thead>
+              <tbody id="recentTxBody">
+                <tr><td colspan="3" style="text-align:center;padding:24px;color:#94a3b8;">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Budget Status -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title" id="budgetStatusTitle">สถานะงบประมาณ</span>
+            <a href="budget.html" class="btn btn-outline btn-sm" id="manageBudgetBtn">จัดการ →</a>
+          </div>
+          <div id="budgetStatusList">
+            <div style="text-align:center;padding:24px;color:#94a3b8;">กำลังโหลด...</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Debt Alerts -->
+      <div class="card" style="margin-top:20px;" id="debtAlertCard">
+        <div class="card-header">
+          <span class="card-title" id="debtAlertTitle">⚠️ แจ้งเตือนหนี้ใกล้ครบกำหนด</span>
+          <a href="debts.html" class="btn btn-outline btn-sm" id="viewDebtsBtn">จัดการหนี้ →</a>
+        </div>
+        <div id="debtAlertList">
+          <div style="text-align:center;padding:20px;color:#94a3b8;">ไม่มีหนี้ที่ใกล้ครบกำหนด</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var barChartInst = null;
+  var pieChartInst = null;
+
+  // ============================================
+  // LOGIN
+  // ============================================
+  function switchLangLogin(lang) {
+    APP.setLang(lang);
+    document.querySelectorAll('.lang-btn').forEach(function(b) { b.classList.remove('active'); });
+    // update labels
+    document.getElementById('lblEmail').textContent = APP.t('email');
+    document.getElementById('lblPassword').textContent = APP.t('password');
+    document.getElementById('loginBtnText').textContent = APP.t('login');
+  }
+
+  window.switchLangLogin = switchLangLogin;
+
+  window.doLogin = async function() {
+    var email = document.getElementById('loginEmail').value.trim();
+    var password = document.getElementById('loginPassword').value;
+    var errEl = document.getElementById('loginError');
+    var btn = document.getElementById('loginBtn');
+
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    document.getElementById('loginBtnText').textContent = APP.t('loading');
+
+    var result = await supabase.auth.signInWithPassword({ email: email, password: password });
+
+    if (result.error) {
+      errEl.textContent = result.error.message;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      document.getElementById('loginBtnText').textContent = APP.t('login');
+    } else {
+      await initApp(result.data.session);
+    }
+  };
+
+  // Enter key login
+  document.getElementById('loginPassword').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') window.doLogin();
+  });
+
+  // ============================================
+  // INIT APP
+  // ============================================
+  async function initApp(session) {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('appPage').style.display = 'flex';
+
+    APP.user = session.user;
+    var profileResult = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+    if (profileResult.data) {
+      APP.profile = profileResult.data;
+      APP.setLang(profileResult.data.language || 'th');
+    }
+
+    updateSidebarUI();
+    updateLangUI();
+    loadDashboard();
+  }
+
+  function updateSidebarUI() {
+    var p = APP.profile;
+    if (!p) return;
+
+    document.getElementById('userAvatar').textContent = (p.full_name || 'U').charAt(0).toUpperCase();
+    document.getElementById('userName').textContent = p.full_name || p.email;
+
+    var roleMap = { admin: APP.t('admin_role'), manager: APP.t('manager_role'), accountant: APP.t('accountant_role'), viewer: APP.t('viewer_role') };
+    document.getElementById('userRole').textContent = roleMap[p.role] || p.role;
+
+    // Hide admin nav for non-admins
+    if (p.role !== 'admin') {
+      document.querySelectorAll('.admin-only').forEach(function(el) { el.style.display = 'none'; });
+    }
+  }
+
+  // ============================================
+  // LANGUAGE
+  // ============================================
+  window.switchLang = function(lang) {
+    APP.setLang(lang);
+    // Update profile
+    if (APP.profile) {
+      supabase.from('profiles').update({ language: lang }).eq('id', APP.profile.id);
+    }
+    updateLangUI();
+    loadDashboard();
+  };
+
+  function updateLangUI() {
+    var lang = APP.lang;
+    document.querySelectorAll('.lang-btn').forEach(function(b) { b.classList.remove('active'); });
+    var btnMap = { th: 'langBtnTh', lo: 'langBtnLo', en: 'langBtnEn' };
+    if (btnMap[lang]) document.getElementById(btnMap[lang]).classList.add('active');
+
+    // Sidebar
+    document.getElementById('sidebarBrand').textContent = APP.t('appName');
+    document.getElementById('navDashboard').textContent = APP.t('dashboard');
+    document.getElementById('navTransactions').textContent = APP.t('transactions');
+    document.getElementById('navReports').textContent = APP.t('reports');
+    document.getElementById('navCashflow').textContent = APP.t('cashflow');
+    document.getElementById('navBudget').textContent = APP.t('budget');
+    document.getElementById('navDebts').textContent = APP.t('debts');
+    document.getElementById('navAssets').textContent = APP.t('assets');
+    document.getElementById('navAdmin').textContent = APP.t('admin');
+    document.getElementById('logoutBtn').textContent = APP.t('logout');
+    document.getElementById('pageTitle').textContent = APP.t('dashboard');
+    document.getElementById('btnAddTx').textContent = APP.t('add') + APP.t('transactions');
+    document.getElementById('kpiLabelIncome').textContent = APP.t('totalIncome');
+    document.getElementById('kpiLabelExpense').textContent = APP.t('totalExpense');
+    document.getElementById('kpiLabelProfit').textContent = APP.t('netProfit');
+    document.getElementById('kpiLabelBalance').textContent = APP.t('balance');
+    document.getElementById('recentTxTitle').textContent = 'รายการล่าสุด';
+    document.getElementById('budgetStatusTitle').textContent = 'สถานะงบประมาณ';
+    document.getElementById('debtAlertTitle').textContent = '⚠️ ' + (lang === 'lo' ? 'ແຈ້ງເຕືອນໜີ້ໃກ້ຄົບກຳນົດ' : lang === 'en' ? 'Upcoming Due Debts' : 'แจ้งเตือนหนี้ใกล้ครบกำหนด');
+  }
+
+  // ============================================
+  // DATE RANGE
+  // ============================================
+  function getDateRange() {
+    var period = document.getElementById('periodFilter').value;
+    var from, to;
+    if (period === 'month') { from = monthStart(); to = monthEnd(); }
+    else if (period === 'year') { from = yearStart(); to = todayISO(); }
+    else {
+      from = document.getElementById('dateFrom').value || monthStart();
+      to = document.getElementById('dateTo').value || todayISO();
+    }
+    return { from: from, to: to };
+  }
+
+  document.getElementById('periodFilter').addEventListener('change', function() {
+    var isCustom = this.value === 'custom';
+    document.getElementById('customDateRange').style.display = isCustom ? 'flex' : 'none';
+  });
+
+  // ============================================
+  // LOAD DASHBOARD
+  // ============================================
+  window.loadDashboard = async function() {
+    var range = getDateRange();
+    await Promise.all([
+      loadKPIs(range),
+      loadCharts(range),
+      loadRecentTransactions(),
+      loadBudgetStatus(),
+      loadDebtAlerts()
+    ]);
+  };
+
+  async function loadKPIs(range) {
+    var result = await supabase
+      .from('transactions')
+      .select('type, amount')
+      .eq('status', 'completed')
+      .gte('date', range.from)
+      .lte('date', range.to);
+
+    if (result.error) return;
+
+    var income = 0, expense = 0;
+    (result.data || []).forEach(function(t) {
+      if (t.type === 'income') income += Number(t.amount);
+      else expense += Number(t.amount);
+    });
+
+    var profit = income - expense;
+    var sym = APP.t('baht');
+
+    document.getElementById('kpiIncome').textContent = sym + formatMoney(income);
+    document.getElementById('kpiExpense').textContent = sym + formatMoney(expense);
+    document.getElementById('kpiProfit').textContent = sym + formatMoney(profit);
+    document.getElementById('kpiProfit').className = 'kpi-value ' + (profit >= 0 ? 'profit' : 'expense');
+
+    // Balance = all time
+    var balResult = await supabase.from('transactions').select('type, amount').eq('status', 'completed');
+    var totalIncome = 0, totalExpense = 0;
+    (balResult.data || []).forEach(function(t) {
+      if (t.type === 'income') totalIncome += Number(t.amount);
+      else totalExpense += Number(t.amount);
+    });
+    document.getElementById('kpiBalance').textContent = sym + formatMoney(totalIncome - totalExpense);
+  }
+
+  async function loadCharts(range) {
+    // Bar chart - last 6 months
+    var months = [];
+    var incomeData = [];
+    var expenseData = [];
+
+    for (var i = 5; i >= 0; i--) {
+      var d = new Date();
+      d.setMonth(d.getMonth() - i);
+      var mStart = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+      var mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+      months.push(d.toLocaleDateString(APP.lang === 'th' ? 'th-TH' : APP.lang === 'lo' ? 'lo-LA' : 'en-US', { month: 'short' }));
+
+      var res = await supabase.from('transactions').select('type,amount').eq('status','completed').gte('date',mStart).lte('date',mEnd);
+      var inc = 0, exp = 0;
+      (res.data || []).forEach(function(t) {
+        if (t.type === 'income') inc += Number(t.amount);
+        else exp += Number(t.amount);
+      });
+      incomeData.push(inc);
+      expenseData.push(exp);
+    }
+
+    if (barChartInst) barChartInst.destroy();
+    barChartInst = new Chart(document.getElementById('barChart'), {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [
+          { label: APP.t('income'), data: incomeData, backgroundColor: 'rgba(16,185,129,.8)', borderRadius: 6 },
+          { label: APP.t('expense'), data: expenseData, backgroundColor: 'rgba(239,68,68,.8)', borderRadius: 6 }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '฿' + formatMoney(v, 0); } } } }
+      }
+    });
+
+    // Pie chart - expense by category in range
+    var catResult = await supabase
+      .from('transactions')
+      .select('amount, categories(name_th, name_lo, name_en, color)')
+      .eq('type', 'expense')
+      .eq('status', 'completed')
+      .gte('date', range.from)
+      .lte('date', range.to);
+
+    var catMap = {};
+    (catResult.data || []).forEach(function(t) {
+      var catName = (t.categories && (APP.lang === 'lo' ? t.categories.name_lo : APP.lang === 'en' ? t.categories.name_en : t.categories.name_th)) || 'อื่น ๆ';
+      var color = (t.categories && t.categories.color) || '#94a3b8';
+      if (!catMap[catName]) catMap[catName] = { total: 0, color: color };
+      catMap[catName].total += Number(t.amount);
+    });
+
+    var catLabels = Object.keys(catMap);
+    var catValues = catLabels.map(function(k) { return catMap[k].total; });
+    var catColors = catLabels.map(function(k) { return catMap[k].color; });
+
+    if (pieChartInst) pieChartInst.destroy();
+    if (catLabels.length > 0) {
+      pieChartInst = new Chart(document.getElementById('pieChart'), {
+        type: 'doughnut',
+        data: { labels: catLabels, datasets: [{ data: catValues, backgroundColor: catColors, borderWidth: 2 }] },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+      });
+    }
+  }
+
+  async function loadRecentTransactions() {
+    var result = await supabase
+      .from('transactions')
+      .select('id, type, amount, description, date, categories(name_th, name_lo, name_en, icon)')
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(8);
+
+    var tbody = document.getElementById('recentTxBody');
+    if (result.error || !result.data || result.data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:24px;color:#94a3b8;">' + APP.t('noData') + '</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = result.data.map(function(t) {
+      var catName = t.categories ? ((APP.lang === 'lo' ? t.categories.name_lo : APP.lang === 'en' ? t.categories.name_en : t.categories.name_th) || '') : '';
+      var icon = (t.categories && t.categories.icon) || '📋';
+      var isIncome = t.type === 'income';
+      return '<tr>' +
+        '<td style="white-space:nowrap;">' + formatDate(t.date) + '</td>' +
+        '<td>' + icon + ' ' + (t.description || catName || '-') + '</td>' +
+        '<td class="text-right ' + (isIncome ? 'text-income' : 'text-expense') + '">' +
+          (isIncome ? '+' : '-') + APP.t('baht') + formatMoney(t.amount) +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  async function loadBudgetStatus() {
+    var result = await supabase
+      .from('budgets')
+      .select('id, name, amount, alert_threshold, period_start, period_end, categories(name_th, name_lo, name_en, icon)')
+      .lte('period_start', todayISO())
+      .gte('period_end', todayISO())
+      .limit(5);
+
+    var el = document.getElementById('budgetStatusList');
+    if (!result.data || result.data.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;">' + APP.t('noData') + '</div>';
+      return;
+    }
+
+    // Get spending for each budget
+    var html = '';
+    for (var i = 0; i < result.data.length; i++) {
+      var b = result.data[i];
+      var spendResult = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('type', 'expense')
+        .eq('status', 'completed')
+        .eq('category_id', b.categories ? b.id : null)
+        .gte('date', b.period_start)
+        .lte('date', b.period_end);
+
+      var spent = 0;
+      (spendResult.data || []).forEach(function(t) { spent += Number(t.amount); });
+      var pct = Math.min((spent / b.amount) * 100, 100);
+      var alertPct = b.alert_threshold || 80;
+      var barColor = pct >= 100 ? '#ef4444' : pct >= alertPct ? '#f59e0b' : '#10b981';
+      var catName = b.categories ? (APP.lang === 'lo' ? b.categories.name_lo : APP.lang === 'en' ? b.categories.name_en : b.categories.name_th) : b.name;
+
+      html += '<div style="margin-bottom:14px;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">' +
+          '<span>' + (b.categories ? b.categories.icon + ' ' : '') + (catName || b.name) + '</span>' +
+          '<span>' + APP.t('baht') + formatMoney(spent, 0) + ' / ' + APP.t('baht') + formatMoney(b.amount, 0) + '</span>' +
+        '</div>' +
+        '<div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;">' +
+          '<div style="height:100%;width:' + pct + '%;background:' + barColor + ';border-radius:4px;transition:width .3s;"></div>' +
+        '</div>' +
+        '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">' + pct.toFixed(0) + '%</div>' +
+      '</div>';
+    }
+    el.innerHTML = html;
+  }
+
+  async function loadDebtAlerts() {
+    var soon = new Date();
+    soon.setDate(soon.getDate() + 30);
+    var soonStr = soon.toISOString().split('T')[0];
+
+    var result = await supabase
+      .from('debts')
+      .select('id, type, counterparty_name, amount, paid_amount, due_date, status')
+      .in('status', ['pending', 'partial', 'overdue'])
+      .lte('due_date', soonStr)
+      .order('due_date', { ascending: true })
+      .limit(5);
+
+    var el = document.getElementById('debtAlertList');
+    if (!result.data || result.data.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;">' + (APP.lang === 'en' ? 'No upcoming debts' : APP.lang === 'lo' ? 'ບໍ່ມີໜີ້ໃກ້ຄົບກຳນົດ' : 'ไม่มีหนี้ที่ใกล้ครบกำหนด') + '</div>';
+      return;
+    }
+
+    var html = '<div class="table-wrapper"><table class="table"><thead><tr>' +
+      '<th>' + APP.t('status') + '</th>' +
+      '<th>' + APP.t('counterparty') + '</th>' +
+      '<th>' + APP.t('amount') + '</th>' +
+      '<th>' + APP.t('date') + '</th>' +
+    '</tr></thead><tbody>';
+
+    result.data.forEach(function(d) {
+      var remaining = Number(d.amount) - Number(d.paid_amount || 0);
+      var isOverdue = d.status === 'overdue' || (d.due_date && d.due_date < todayISO());
+      var typeLabel = d.type === 'payable' ? APP.t('payable') : APP.t('receivable');
+      var badge = isOverdue ? 'badge-danger' : 'badge-warning';
+      html += '<tr>' +
+        '<td><span class="badge ' + badge + '">' + typeLabel + '</span></td>' +
+        '<td>' + d.counterparty_name + '</td>' +
+        '<td class="text-expense">' + APP.t('baht') + formatMoney(remaining) + '</td>' +
+        '<td style="white-space:nowrap;">' + formatDate(d.due_date) + '</td>' +
+      '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+  }
+
+  // ============================================
+  // MOBILE SIDEBAR
+  // ============================================
+  window.toggleSidebar = function() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
+  };
+
+  // Show menu toggle on mobile
+  if (window.innerWidth <= 768) {
+    document.querySelector('.menu-toggle').style.display = 'flex';
+  }
+  window.addEventListener('resize', function() {
+    var toggle = document.querySelector('.menu-toggle');
+    if (toggle) toggle.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
+  });
+
+  // ============================================
+  // BOOTSTRAP
+  // ============================================
+  supabase.auth.getSession().then(function(result) {
+    var session = result.data.session;
+    if (session) {
+      initApp(session);
+    }
+    // else show login
+  });
+
+  supabase.auth.onAuthStateChange(function(event, session) {
+    if (event === 'SIGNED_OUT') {
+      document.getElementById('loginPage').style.display = 'flex';
+      document.getElementById('appPage').style.display = 'none';
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
