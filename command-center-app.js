@@ -7,11 +7,50 @@
   var debtsData = [];
   var savingsData = [];
 
+  // Catches anything that escapes the normal try/catch paths below — e.g. a
+  // null DOM reference thrown synchronously inside initUI(), or any other
+  // unexpected exception — so the page never again fails completely silently.
+  window.addEventListener('error', function(e) {
+    console.error('Unhandled error on Command Center:', e.error || e.message);
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    console.error('Unhandled promise rejection on Command Center:', e.reason);
+    showLoadError(e.reason);
+  });
+
   checkAuth().then(function(session) {
     if (!session) return;
-    initUI();
-    loadAll();
+    try {
+      initUI();
+    } catch (err) {
+      console.error('initUI failed:', err);
+      showLoadError(err);
+      return;
+    }
+    loadAll().catch(function(err) {
+      console.error('Command Center load failed:', err);
+      showLoadError(err);
+    });
+  }).catch(function(err) {
+    console.error('checkAuth failed:', err);
+    showLoadError(err);
   });
+
+  // Surfaces a real error in every panel instead of leaving them stuck on
+  // "กำลังโหลด..." forever with no indication that something went wrong.
+  // Previously a single failed query inside loadAll() would silently abort
+  // the whole chain — nothing would render until the user clicked a forecast
+  // tab, which calls renderForecast() independently and happened to "fix" it.
+  function showLoadError(err) {
+    var msg = '⚠️ โหลดข้อมูลไม่สำเร็จ: ' + (err && err.message ? err.message : 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ') +
+      ' <button class="btn btn-outline btn-sm" onclick="location.reload()" style="margin-left:8px;">ลองใหม่</button>';
+    ['insightsList', 'calendarList'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = '<div style="padding:16px;color:#ef4444;font-size:13px;">' + msg + '</div>';
+    });
+    var fc = document.getElementById('forecastSummary');
+    if (fc) fc.innerHTML = '<span style="color:#ef4444;">' + msg + '</span>';
+  }
 
   function initUI() {
     var p = APP.profile;
