@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>บัญชีออมเงิน & ฝากประจำ</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="supabase-config.js"></script>
+<style>
+.bank-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--gray-200); margin-bottom: 20px; flex-wrap: wrap; }
+.bank-tab {
+  padding: 12px 24px; font-size: 14px; font-weight: 600; color: var(--gray-500);
+  cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all .2s;
+  display: flex; align-items: center; gap: 8px;
+}
+.bank-tab:hover { color: var(--primary); }
+.bank-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+.account-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; }
+
+.bank-card {
+  border-radius: 16px; padding: 22px; position: relative; overflow: hidden; color: #fff;
+  box-shadow: 0 8px 20px rgba(0,0,0,.12); min-height: 190px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.bank-card.savings { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); }
+.bank-card.term { background: linear-gradient(135deg, #059669 0%, #0d9488 100%); }
+.bank-card.matured { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
+.bank-card.closed { background: linear-gradient(135deg, #64748b 0%, #475569 100%); opacity: .75; }
+
+.bank-card::before { content: ''; position: absolute; right: -40px; top: -40px; width: 140px; height: 140px; border-radius: 50%; background: rgba(255,255,255,.08); }
+.bank-card::after { content: ''; position: absolute; right: 20px; bottom: -50px; width: 100px; height: 100px; border-radius: 50%; background: rgba(255,255,255,.06); }
+
+.bank-card-top { display: flex; justify-content: space-between; align-items: flex-start; position: relative; z-index: 1; }
+.bank-card-name { font-size: 15px; font-weight: 700; }
+.bank-card-sub { font-size: 11px; opacity: .8; margin-top: 2px; }
+.bank-card-icon { font-size: 28px; }
+.bank-card-balance { font-size: 24px; font-weight: 800; margin: 14px 0 4px; position: relative; z-index: 1; letter-spacing: .3px; word-break: break-all; }
+.bank-card-label { font-size: 11px; opacity: .8; position: relative; z-index: 1; }
+.bank-card-footer { display: flex; justify-content: space-between; align-items: flex-end; font-size: 11px; position: relative; z-index: 1; margin-top: 12px; }
+.bank-card-rate { background: rgba(255,255,255,.18); padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+.bank-card-actions { display: flex; gap: 6px; margin-top: 12px; position: relative; z-index: 1; }
+.bank-card-actions button {
+  flex: 1; padding: 7px; border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.1);
+  color: #fff; border-radius: 8px; cursor: pointer; font-size: 12px; font-family: inherit; font-weight: 500; transition: all .2s;
+}
+.bank-card-actions button:hover { background: rgba(255,255,255,.25); }
+
+.maturity-progress { height: 5px; background: rgba(255,255,255,.2); border-radius: 3px; overflow: hidden; margin-top: 8px; position: relative; z-index: 1; }
+.maturity-bar { height: 100%; background: #fff; border-radius: 3px; }
+
+.savings-kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 20px; }
+
+.acc-type-toggle { display: flex; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 16px; }
+.acc-type-toggle button { flex: 1; padding: 11px; border: none; cursor: pointer; font-size: 13px; font-family: inherit; font-weight: 600; background: transparent; transition: all .2s; display:flex; align-items:center; justify-content:center; gap:6px; }
+.acc-type-toggle button.active-savings { background: #e0e7ff; color: #3730a3; }
+.acc-type-toggle button.active-term { background: #d1fae5; color: #065f46; }
+
+.detail-balance-box { background: linear-gradient(135deg, #4f46e5, #7c3aed); border-radius: 14px; padding: 20px; color: #fff; margin-bottom: 16px; text-align: center; }
+.detail-balance-box .big-amt { font-size: 28px; font-weight: 800; margin: 6px 0; word-break: break-all; }
+.detail-stat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
+.detail-stat { background: var(--gray-50); border-radius: 10px; padding: 12px; text-align: center; }
+.detail-stat .ds-label { font-size: 11px; color: var(--gray-500); margin-bottom: 4px; }
+.detail-stat .ds-value { font-size: 15px; font-weight: 700; word-break: break-all; }
+
+.sim-result-box { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 12px; padding: 18px; margin-top: 16px; }
+.sim-row { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px dashed rgba(0,0,0,.1); }
+.sim-row:last-child { border: none; font-weight: 700; font-size: 16px; padding-top: 10px; }
+
+.reminder-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 10px; background: #fffbeb; border: 1px solid #fde68a; margin-bottom: 8px; }
+.reminder-item.urgent { background: #fef2f2; border-color: #fecaca; }
+.reminder-icon { font-size: 22px; }
+
+body.dark-mode { background:#0f172a; color:#e2e8f0; }
+body.dark-mode .card, body.dark-mode .top-header, body.dark-mode .modal { background:#1e293b; }
+body.dark-mode .sidebar { background:#0a0f1e; }
+body.dark-mode .form-control { background:#334155; border-color:#475569; color:#e2e8f0; }
+body.dark-mode .detail-stat { background:#334155; }
+body.dark-mode .table td, body.dark-mode .table th { border-color:#334155; }
+body.dark-mode .table tbody tr:hover { background:#334155; }
+
+@media (max-width: 768px) {
+  .savings-kpi-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><span class="logo">💼</span><div><div class="brand-name">ระบบบริหารการเงิน</div></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-label" data-i18n="main">หลัก</div>
+      <a href="index.html" class="nav-item"><span class="nav-icon">📊</span><span data-i18n="dashboard">แดชบอร์ด</span></a>
+      <a href="transactions.html" class="nav-item"><span class="nav-icon">💰</span><span data-i18n="transactions">รายรับ-รายจ่าย</span></a>
+      <div class="nav-label" data-i18n="analysis">วิเคราะห์</div>
+      <a href="reports.html" class="nav-item"><span class="nav-icon">📈</span><span data-i18n="reports">รายงาน</span></a>
+      <a href="cashflow.html" class="nav-item"><span class="nav-icon">💧</span><span data-i18n="cashflow">กระแสเงินสด</span></a>
+      <a href="budget.html" class="nav-item"><span class="nav-icon">🎯</span><span data-i18n="budget">งบประมาณ</span></a>
+      <a href="savings.html" class="nav-item active"><span class="nav-icon">🏦</span><span>ออมเงิน/ฝากประจำ</span></a>
+      <div class="nav-label" data-i18n="manage">จัดการ</div>
+      <a href="debts.html" class="nav-item"><span class="nav-icon">🤝</span><span data-i18n="debts">หนี้/ลูกหนี้</span></a>
+      <a href="assets.html" class="nav-item"><span class="nav-icon">🏭</span><span data-i18n="assets">ทรัพย์สิน</span></a>
+      <div class="nav-label admin-only" data-i18n="adminLabel">ผู้ดูแล</div>
+      <a href="admin.html" class="nav-item admin-only"><span class="nav-icon">⚙️</span><span data-i18n="admin">ผู้ดูแลระบบ</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info"><div class="user-avatar" id="userAvatar">U</div><div><div class="user-name" id="userName">—</div><div class="user-role" id="userRole">—</div></div></div>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">🚪 <span data-i18n="logout">ออกจากระบบ</span></button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <button class="menu-toggle" onclick="toggleSidebar()" style="display:none;">☰</button>
+      <h1 class="page-title">🏦 บัญชีออมเงิน &amp; ฝากประจำ</h1>
+      <div class="header-actions">
+        <div class="lang-switcher">
+          <button class="lang-btn active" id="langBtnTh" onclick="switchLang('th')">ไทย</button>
+          <button class="lang-btn" id="langBtnLo" onclick="switchLang('lo')">ລາວ</button>
+          <button class="lang-btn" id="langBtnEn" onclick="switchLang('en')">EN</button>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="openSimulatorModal()">🧮 จำลองผลตอบแทน</button>
+        <button class="btn btn-primary btn-sm" onclick="openAccountModal()">➕ เปิดบัญชีใหม่</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <div class="savings-kpi-grid">
+        <div class="kpi-card"><div class="kpi-icon profit">🏦</div><div class="kpi-body"><div class="kpi-label">เงินต้นรวมทั้งหมด</div><div class="kpi-value profit" id="kpiTotalPrincipal">₭0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon income">📈</div><div class="kpi-body"><div class="kpi-label">ดอกเบี้ยสะสมรวม</div><div class="kpi-value income" id="kpiTotalInterest">₭0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon balance">💰</div><div class="kpi-body"><div class="kpi-label">ยอดรวมทั้งหมด</div><div class="kpi-value balance" id="kpiGrandTotal">₭0</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon expense">⏰</div><div class="kpi-body"><div class="kpi-label">ใกล้ครบกำหนด (30 วัน)</div><div class="kpi-value expense" id="kpiMaturingSoon">0 บัญชี</div></div></div>
+      </div>
+
+      <div id="remindersSection" style="display:none;margin-bottom:20px;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">🔔 การแจ้งเตือน</span></div>
+          <div id="remindersList"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header"><span class="card-title">📊 ความคืบหน้าการออม (ทุกบัญชี)</span></div>
+        <canvas id="savingsProgressChart" height="90"></canvas>
+      </div>
+
+      <div class="bank-tabs">
+        <div class="bank-tab active" onclick="setMainTab('all')" id="mtAll">📋 ทั้งหมด</div>
+        <div class="bank-tab" onclick="setMainTab('savings')" id="mtSavings">💜 บัญชีออมเงิน</div>
+        <div class="bank-tab" onclick="setMainTab('term_deposit')" id="mtTerm">💚 ฝากประจำ</div>
+        <div class="bank-tab" onclick="setMainTab('closed')" id="mtClosed">📦 ปิดบัญชีแล้ว</div>
+      </div>
+
+      <div class="account-grid" id="accountGrid">
+        <div style="text-align:center;padding:40px;color:#94a3b8;grid-column:1/-1;">กำลังโหลด...</div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- OPEN ACCOUNT MODAL -->
+<div class="modal-overlay" id="accountModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" id="accountModalTitle">🏦 เปิดบัญชีใหม่</h3>
+      <button class="modal-close" onclick="closeModal('accountModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="accEditId">
+      <div class="acc-type-toggle">
+        <button id="accBtnSavings" onclick="setAccType('savings')" class="active-savings">💜 บัญชีออมเงิน</button>
+        <button id="accBtnTerm" onclick="setAccType('term_deposit')">💚 ฝากประจำ</button>
+      </div>
+      <input type="hidden" id="fAccType" value="savings">
+
+      <div class="form-group">
+        <label class="form-label">ชื่อบัญชี <span class="required">*</span></label>
+        <input type="text" class="form-control" id="fAccName" placeholder="เช่น ออมเงินซื้อบ้าน, ฝากประจำ 12 เดือน">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ธนาคาร/สถาบัน</label>
+          <input type="text" class="form-control" id="fAccBank" placeholder="เช่น ธ.กรุงไทย, ธ.พัฒนาลาว">
+        </div>
+        <div class="form-group">
+          <label class="form-label">เลขบัญชี (ถ้ามี)</label>
+          <input type="text" class="form-control" id="fAccNumber" placeholder="xxx-x-xxxxx-x">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ยอดเงินต้นเริ่มต้น <span class="required">*</span></label>
+          <input type="number" class="form-control" id="fAccPrincipal" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group" id="fAccGoalWrap">
+          <label class="form-label">เป้าหมายการออม</label>
+          <input type="number" class="form-control" id="fAccGoal" placeholder="เช่น 1000000">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">อัตราดอกเบี้ย (%) <span class="required">*</span></label>
+          <input type="number" class="form-control" id="fAccRate" placeholder="เช่น 3.5" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ประเภทอัตรา</label>
+          <select class="form-control" id="fAccRateType">
+            <option value="yearly">% ต่อปี</option>
+            <option value="monthly">% ต่อเดือน</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วิธีคิดดอกเบี้ย</label>
+          <select class="form-control" id="fAccCalcMethod" onchange="toggleCompoundFreq()">
+            <option value="simple">ดอกเบี้ยปกติ (Simple)</option>
+            <option value="compound">ดอกเบี้ยทบต้น (Compound)</option>
+          </select>
+        </div>
+        <div class="form-group" id="fCompoundFreqWrap" style="display:none;">
+          <label class="form-label">ความถี่ทบต้น</label>
+          <select class="form-control" id="fAccCompoundFreq">
+            <option value="monthly">ทุกเดือน</option>
+            <option value="quarterly">ทุกไตรมาส</option>
+            <option value="yearly">ทุกปี</option>
+            <option value="daily">ทุกวัน</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วันที่เปิดบัญชี <span class="required">*</span></label>
+          <input type="date" class="form-control" id="fAccStartDate">
+        </div>
+        <div class="form-group" id="fAccTermWrap" style="display:none;">
+          <label class="form-label">ระยะเวลาฝาก (เดือน)</label>
+          <input type="number" class="form-control" id="fAccTermMonths" placeholder="เช่น 12" min="1" oninput="calcMaturityDate()">
+        </div>
+      </div>
+
+      <div class="form-row" id="fAccMaturityWrap" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">วันครบกำหนด</label>
+          <input type="date" class="form-control" id="fAccMaturityDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ความถี่จ่ายดอกเบี้ย</label>
+          <select class="form-control" id="fAccPayoutFreq">
+            <option value="maturity">เมื่อครบกำหนด</option>
+            <option value="monthly">ทุกเดือน</option>
+            <option value="quarterly">ทุกไตรมาส</option>
+            <option value="yearly">ทุกปี</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" id="fAccAutoRenewWrap" style="display:none;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="fAccAutoRenew"> ต่ออายุอัตโนมัติเมื่อครบกำหนด
+        </label>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ไอคอน</label>
+          <input type="text" class="form-control" id="fAccIcon" placeholder="🏦" maxlength="4" value="🏦">
+        </div>
+        <div class="form-group">
+          <label class="form-label">สี</label>
+          <input type="color" class="form-control" id="fAccColor" value="#6366f1" style="height:40px;padding:4px;">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <textarea class="form-control" id="fAccNote" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('accountModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveAccount()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEPOSIT / WITHDRAW MODAL -->
+<div class="modal-overlay" id="txModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="txModalTitle">💰 ฝากเงิน</h3>
+      <button class="modal-close" onclick="closeModal('txModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="txAccountId">
+      <input type="hidden" id="txType" value="deposit">
+      <div style="padding:12px;background:var(--gray-50);border-radius:8px;margin-bottom:16px;">
+        <div style="font-size:12px;color:var(--gray-500);">ยอดคงเหลือปัจจุบัน</div>
+        <div style="font-size:20px;font-weight:700;" id="txCurrentBalance">₭0</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">จำนวนเงิน <span class="required">*</span></label>
+        <input type="number" class="form-control" id="fTxAmount" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">วันที่ทำรายการ</label>
+        <input type="date" class="form-control" id="fTxDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <input type="text" class="form-control" id="fTxNote" placeholder="ไม่บังคับ">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('txModal')">ยกเลิก</button>
+      <button class="btn btn-primary" id="txSaveBtn" onclick="saveTx()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACCOUNT DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" id="detailModalTitle">รายละเอียดบัญชี</h3>
+      <button class="modal-close" onclick="closeModal('detailModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-balance-box">
+        <div style="font-size:13px;opacity:.85;" id="detailAccName">—</div>
+        <div class="big-amt" id="detailBalance">₭0</div>
+        <div style="font-size:12px;opacity:.8;" id="detailRate">—</div>
+      </div>
+
+      <div class="detail-stat-grid">
+        <div class="detail-stat"><div class="ds-label">เงินต้น</div><div class="ds-value" id="detailPrincipal">₭0</div></div>
+        <div class="detail-stat"><div class="ds-label">ดอกเบี้ยสะสม</div><div class="ds-value" style="color:#10b981;" id="detailInterest">₭0</div></div>
+        <div class="detail-stat"><div class="ds-label">ยอดรวม</div><div class="ds-value" style="color:#6366f1;" id="detailTotal">₭0</div></div>
+      </div>
+
+      <div id="detailGoalSection" style="display:none;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+          <span>ความคืบหน้าเป้าหมาย</span><span id="detailGoalPct">0%</span>
+        </div>
+        <div style="height:10px;background:var(--gray-100);border-radius:5px;overflow:hidden;">
+          <div id="detailGoalBar" style="height:100%;background:#6366f1;border-radius:5px;width:0%;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:4px;" id="detailGoalText"></div>
+      </div>
+
+      <div id="detailMaturitySection" style="display:none;margin-bottom:16px;padding:12px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;">
+        <div style="font-size:13px;font-weight:600;color:#92400e;" id="detailMaturityText"></div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="btn btn-success" style="flex:1;justify-content:center;" onclick="openTxModalFromDetail('deposit')">💰 ฝากเงิน</button>
+        <button class="btn btn-danger" style="flex:1;justify-content:center;" onclick="openTxModalFromDetail('withdrawal')">💸 ถอนเงิน</button>
+      </div>
+
+      <div class="filter-bar" style="margin-bottom:12px;">
+        <input type="date" class="form-control" id="histFrom" style="max-width:150px;" onchange="loadHistory()">
+        <input type="date" class="form-control" id="histTo" style="max-width:150px;" onchange="loadHistory()">
+        <select class="form-control" id="histType" style="max-width:140px;" onchange="loadHistory()">
+          <option value="">ทุกประเภท</option>
+          <option value="deposit">ฝากเงิน</option>
+          <option value="withdrawal">ถอนเงิน</option>
+          <option value="interest">ดอกเบี้ย</option>
+        </select>
+      </div>
+
+      <div class="card-title" style="margin-bottom:10px;">📜 ประวัติการทำรายการ</div>
+      <div class="table-wrapper" style="max-height:280px;overflow-y:auto;">
+        <table class="table">
+          <thead><tr><th>วันที่</th><th>ประเภท</th><th class="text-right">จำนวน</th><th class="text-right">คงเหลือ</th></tr></thead>
+          <tbody id="historyBody"><tr><td colspan="4" style="text-align:center;padding:20px;color:#94a3b8;">กำลังโหลด...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('detailModal')">ปิด</button>
+      <button class="btn btn-outline" id="detailEditBtn" onclick="editFromDetail()">✏️ แก้ไขบัญชี</button>
+      <button class="btn btn-danger" id="detailCloseBtn" onclick="closeAccountAction()">📦 ปิดบัญชี</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIMULATOR MODAL -->
+<div class="modal-overlay" id="simulatorModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">🧮 จำลองผลตอบแทนการฝากเงิน</h3>
+      <button class="modal-close" onclick="closeModal('simulatorModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">เงินต้น <span class="required">*</span></label>
+          <input type="number" class="form-control" id="simPrincipal" placeholder="100000" oninput="runSimulation()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ระยะเวลา (เดือน) <span class="required">*</span></label>
+          <input type="number" class="form-control" id="simMonths" placeholder="12" oninput="runSimulation()">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">อัตราดอกเบี้ย (%)</label>
+          <input type="number" class="form-control" id="simRate" placeholder="3.5" step="0.01" oninput="runSimulation()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ประเภทอัตรา</label>
+          <select class="form-control" id="simRateType" onchange="runSimulation()">
+            <option value="yearly">% ต่อปี</option>
+            <option value="monthly">% ต่อเดือน</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">วิธีคิดดอกเบี้ย</label>
+        <select class="form-control" id="simMethod" onchange="runSimulation()">
+          <option value="simple">ดอกเบี้ยปกติ (Simple)</option>
+          <option value="compound">ดอกเบี้ยทบต้นรายเดือน (Compound)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ฝากเพิ่มทุกเดือน (ไม่บังคับ)</label>
+        <input type="number" class="form-control" id="simMonthlyAdd" placeholder="0" oninput="runSimulation()">
+      </div>
+
+      <div class="sim-result-box" id="simResultBox" style="display:none;">
+        <div class="sim-row"><span>เงินต้นรวม</span><span id="simOutPrincipal">—</span></div>
+        <div class="sim-row"><span>ดอกเบี้ยที่ได้รับ</span><span id="simOutInterest" style="color:#10b981;">—</span></div>
+        <div class="sim-row"><span>ยอดรวมเมื่อครบกำหนด</span><span id="simOutTotal">—</span></div>
+      </div>
+
+      <canvas id="simChart" height="140" style="margin-top:16px;display:none;"></canvas>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('simulatorModal')">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<script src="savings-app.js"></script>
+</body>
+</html>
