@@ -55,22 +55,35 @@
   // ============================================
   // LOAD ALL DATA
   // ============================================
+  var allTimeBalance = 0; // single source of truth, computed once per load
+
   async function loadAll() {
     var ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     var fromDate = ninetyDaysAgo.toISOString().split('T')[0];
 
-    var [txRes, debtsRes, savingsRes, billsRes] = await Promise.all([
+    var [txRes, debtsRes, savingsRes, billsRes, allTxRes] = await Promise.all([
       supabase.from('transactions').select('*, categories(name_th, icon, color)').eq('status', 'completed').gte('date', fromDate).order('date', { ascending: false }),
       supabase.from('debts').select('*'),
       tryFetch('savings_accounts'),
-      tryFetch('scheduled_bills')
+      tryFetch('scheduled_bills'),
+      supabase.from('transactions').select('type, amount').eq('status', 'completed')
     ]);
 
     txData = txRes.data || [];
     debtsData = debtsRes.data || [];
     savingsData = savingsRes || [];
     var billsData = billsRes || [];
+
+    // Compute true all-time balance ONCE — every section below reuses this same number
+    // so the hero balance, the forecast starting point, and any other reference to
+    // "current balance" are guaranteed to be identical and not drift apart.
+    var allInc = 0, allExp = 0;
+    (allTxRes.data || []).forEach(function(t) {
+      if (t.type === 'income') allInc += Number(t.amount);
+      else allExp += Number(t.amount);
+    });
+    allTimeBalance = allInc - allExp;
 
     renderHeroStats();
     var health = calculateHealthScore();
@@ -123,15 +136,9 @@
     }).length;
     document.getElementById('statDueToday').textContent = dueTodayCount + ' รายการ';
 
-    // Get true all-time balance
-    supabase.from('transactions').select('type, amount').eq('status', 'completed').then(function(r) {
-      var inc = 0, exp = 0;
-      (r.data || []).forEach(function(t) {
-        if (t.type === 'income') inc += Number(t.amount);
-        else exp += Number(t.amount);
-      });
-      document.getElementById('ccTotalBalance').textContent = APP.t('baht') + formatMoney(inc - exp);
-    });
+    // Use the single pre-computed all-time balance (see loadAll) — no separate query,
+    // no risk of this number disagreeing with the forecast's starting point.
+    document.getElementById('ccTotalBalance').textContent = APP.t('baht') + formatMoney(allTimeBalance);
   }
 
   // ============================================
@@ -141,7 +148,8 @@
     // 1. LIQUIDITY (สภาพคล่อง) - 0-100
     // based on: balance trend, income vs expense ratio over last 30 days
     var thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    var recent30 = txData.filter(function(t) { return new Date(t.date) >= thirtyDaysAgo; });
+    var thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+    var recent30 = txData.filter(function(t) { return t.date >= thirtyDaysAgoStr; });
     var inc30 = 0, exp30 = 0;
     recent30.forEach(function(t) { if (t.type === 'income') inc30 += Number(t.amount); else exp30 += Number(t.amount); });
 
@@ -167,10 +175,13 @@
 
     var debtScore = 100;
     if (inc30 > 0) {
-      var debtToIncomeRatio = totalDebtOutstanding / (inc30 * 12 / 30 * 30); // rough annualized comparison, simplify:
+      // Debt-to-30-day-income ratio: every multiple of monthly income owed costs 20 points.
+      // e.g. owing 1x your 30-day income -> -20 pts, owing 5x -> score floors at 0.
       var debtRatio = totalDebtOutstanding / Math.max(inc30, 1);
       debtScore = Math.max(0, 100 - debtRatio * 20);
     } else if (totalDebtOutstanding > 0) {
+      // Has debt but no income recorded in the last 30 days — can't compute a ratio,
+      // so apply a flat penalty score rather than claiming false precision.
       debtScore = 40;
     }
     debtScore -= overdueCount * 15;
@@ -186,6 +197,11 @@
 
     var overall = Math.round(liquidityScore * 0.35 + debtScore * 0.35 + savingsScore * 0.30);
 
+    // Flag low-confidence scores: with very little transaction history the ratios
+    // above are noisy (e.g. one big expense can swing the score wildly). The UI
+    // uses this to show a caveat rather than presenting the number as definitive.
+    var lowConfidence = recent30.length < 5;
+
     return {
       overall: overall,
       liquidity: Math.round(liquidityScore),
@@ -194,7 +210,9 @@
       inc30: inc30, exp30: exp30,
       totalDebtOutstanding: totalDebtOutstanding,
       overdueCount: overdueCount,
-      savingsRate: savingsRate
+      savingsRate: savingsRate,
+      lowConfidence: lowConfidence,
+      sampleSize: recent30.length
     };
   }
 
@@ -210,7 +228,10 @@
     document.getElementById('ccHealthScore').textContent = h.overall;
     var grade = gradeFromScore(h.overall);
     var gradeEl = document.getElementById('ccHealthGrade');
-    gradeEl.textContent = grade.label;
+    gradeEl.textContent = grade.label + (h.lowConfidence ? ' *' : '');
+    gradeEl.title = h.lowConfidence
+      ? 'ข้อมูลย้อนหลัง 30 วันมีเพียง ' + h.sampleSize + ' รายการ คะแนนนี้อาจไม่แม่นยำ แนะนำให้บันทึกรายการสม่ำเสมอเพื่อความแม่นยำที่ดีขึ้น'
+      : 'คำนวณจากรายรับ-รายจ่าย 30 วันล่าสุด, หนี้คงค้าง, และอัตราการออม';
     gradeEl.style.background = grade.bg;
     gradeEl.style.color = '#fff';
 
@@ -345,79 +366,94 @@
   };
 
   function renderForecast() {
-    // Calculate average daily income/expense from last 30 days
+    // Baseline daily run-rate from the last 30 days of actual transactions.
     var thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    var recent = txData.filter(function(t) { return new Date(t.date) >= thirtyDaysAgo; });
+    var thirtyDaysAgoStr2 = thirtyDaysAgo.toISOString().split('T')[0];
+    var recent = txData.filter(function(t) { return t.date >= thirtyDaysAgoStr2; });
     var inc = 0, exp = 0;
     recent.forEach(function(t) { if (t.type === 'income') inc += Number(t.amount); else exp += Number(t.amount); });
     var dailyIncRate = inc / 30;
     var dailyExpRate = exp / 30;
 
-    // Get current balance
-    supabase.from('transactions').select('type, amount').eq('status', 'completed').then(function(r) {
-      var totalInc = 0, totalExp = 0;
-      (r.data || []).forEach(function(t) { if (t.type === 'income') totalInc += Number(t.amount); else totalExp += Number(t.amount); });
-      var currentBalance = totalInc - totalExp;
+    // Use the same all-time balance computed once in loadAll() — guarantees this
+    // chart's starting point always matches the hero "เงินสดคงเหลือทั้งหมด" figure.
+    var currentBalance = allTimeBalance;
 
-      var labels = ['วันนี้'];
-      var data = [currentBalance];
-      var balance = currentBalance;
+    var labels = ['วันนี้'];
+    var data = [currentBalance];
+    var balance = currentBalance;
 
-      // Include known upcoming debt payments
-      var upcomingDebts = debtsData.filter(function(d) { return d.type === 'payable' && ['pending', 'partial'].includes(d.status) && d.due_date; });
+    // Known scheduled debt movements within the forecast window, in BOTH directions:
+    // - payable (เจ้าหนี้ที่เราต้องจ่าย) -> subtracts from projected balance
+    // - receivable (ลูกหนี้ที่จะจ่ายเรา) -> adds to projected balance
+    // Earlier versions of this forecast only subtracted payables, which understated
+    // the projected balance for anyone with outstanding receivables.
+    var upcomingDebts = debtsData.filter(function(d) {
+      return ['pending', 'partial'].includes(d.status) && d.due_date;
+    });
 
-      var step = forecastDays <= 30 ? 2 : forecastDays <= 60 ? 4 : 6;
-      for (var d = step; d <= forecastDays; d += step) {
-        var dailyChange = (dailyIncRate - dailyExpRate) * step;
-        balance += dailyChange;
+    var step = forecastDays <= 30 ? 2 : forecastDays <= 60 ? 4 : 6;
+    for (var d = step; d <= forecastDays; d += step) {
+      var dailyChange = (dailyIncRate - dailyExpRate) * step;
+      balance += dailyChange;
 
-        // Subtract debt payments due in this period
-        var periodStart = new Date(); periodStart.setDate(periodStart.getDate() + d - step);
-        var periodEnd = new Date(); periodEnd.setDate(periodEnd.getDate() + d);
-        upcomingDebts.forEach(function(deb) {
-          var dueD = new Date(deb.due_date);
-          if (dueD > periodStart && dueD <= periodEnd) {
-            balance -= (Number(deb.amount) - Number(deb.paid_amount || 0));
-          }
-        });
-
-        var futureDate = new Date(); futureDate.setDate(futureDate.getDate() + d);
-        labels.push(futureDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }));
-        data.push(balance);
-      }
-
-      if (forecastChartInst) forecastChartInst.destroy();
-      forecastChartInst = new Chart(document.getElementById('forecastChart'), {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'คาดการณ์ยอดคงเหลือ',
-            data: data,
-            borderColor: data[data.length - 1] < 0 ? '#ef4444' : '#6366f1',
-            backgroundColor: data[data.length - 1] < 0 ? 'rgba(239,68,68,.1)' : 'rgba(99,102,241,.1)',
-            tension: .3, fill: true, pointRadius: 3
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: { y: { ticks: { callback: function(v) { return APP.t('baht') + formatMoney(v, 0); } } } }
+      var periodStart = new Date(); periodStart.setDate(periodStart.getDate() + d - step);
+      var periodEnd = new Date(); periodEnd.setDate(periodEnd.getDate() + d);
+      upcomingDebts.forEach(function(deb) {
+        var dueD = parseLocalDate(deb.due_date);
+        if (dueD > periodStart && dueD <= periodEnd) {
+          var remaining = Number(deb.amount) - Number(deb.paid_amount || 0);
+          balance += (deb.type === 'payable' ? -remaining : remaining);
         }
       });
 
-      var finalBalance = data[data.length - 1];
-      var changeAmt = finalBalance - currentBalance;
-      document.getElementById('forecastSummary').innerHTML =
-        '📌 ในอีก <strong>' + forecastDays + ' วัน</strong> คาดว่ายอดคงเหลือจะเป็น <strong style="color:' + (finalBalance < 0 ? '#ef4444' : '#10b981') + ';">' + APP.t('baht') + formatMoney(finalBalance, 0) + '</strong>' +
-        ' (' + (changeAmt >= 0 ? '+' : '') + APP.t('baht') + formatMoney(changeAmt, 0) + ')' +
-        (finalBalance < 0 ? '<br><span style="color:#ef4444;">⚠️ มีความเสี่ยงเงินสดติดลบ ควรวางแผนรายรับเพิ่มเติม</span>' : '');
+      var futureDate = new Date(); futureDate.setDate(futureDate.getDate() + d);
+      labels.push(futureDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }));
+      data.push(balance);
+    }
+
+    if (forecastChartInst) forecastChartInst.destroy();
+    forecastChartInst = new Chart(document.getElementById('forecastChart'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'คาดการณ์ยอดคงเหลือ',
+          data: data,
+          borderColor: data[data.length - 1] < 0 ? '#ef4444' : '#6366f1',
+          backgroundColor: data[data.length - 1] < 0 ? 'rgba(239,68,68,.1)' : 'rgba(99,102,241,.1)',
+          tension: .3, fill: true, pointRadius: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { ticks: { callback: function(v) { return APP.t('baht') + formatMoney(v, 0); } } } }
+      }
     });
+
+    var finalBalance = data[data.length - 1];
+    var changeAmt = finalBalance - currentBalance;
+    var hasEnoughHistory = recent.length >= 3;
+    document.getElementById('forecastSummary').innerHTML =
+      '📌 ในอีก <strong>' + forecastDays + ' วัน</strong> คาดว่ายอดคงเหลือจะเป็น <strong style="color:' + (finalBalance < 0 ? '#ef4444' : '#10b981') + ';">' + APP.t('baht') + formatMoney(finalBalance, 0) + '</strong>' +
+      ' (' + (changeAmt >= 0 ? '+' : '') + APP.t('baht') + formatMoney(changeAmt, 0) + ')' +
+      (finalBalance < 0 ? '<br><span style="color:#ef4444;">⚠️ มีความเสี่ยงเงินสดติดลบ ควรวางแผนรายรับเพิ่มเติม</span>' : '') +
+      (!hasEnoughHistory ? '<br><span style="color:#94a3b8;font-size:11px;">⚠️ ข้อมูลย้อนหลังยังน้อย (มีเพียง ' + recent.length + ' รายการใน 30 วัน) การคาดการณ์นี้อาจคลาดเคลื่อนได้มาก</span>' : '') +
+      '<br><span style="color:#94a3b8;font-size:11px;">คำนวณจากอัตราใช้จ่ายเฉลี่ย 30 วันล่าสุด บวก/ลบรายการหนี้ที่ครบกำหนดในช่วงเวลานี้ ไม่รวมรายการที่ยังไม่เกิดขึ้นจริงอื่น ๆ</span>';
   }
 
   // ============================================
   // FINANCIAL CALENDAR
   // ============================================
+  // Parses a 'YYYY-MM-DD' string as a LOCAL calendar date (not UTC midnight),
+  // so .getDate()/.getMonth() always match the date the user actually entered,
+  // regardless of the browser's timezone offset.
+  function parseLocalDate(dateStr) {
+    var parts = dateStr.split('-');
+    return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  }
+
   function renderCalendar(billsData) {
     var today = new Date();
     var twoWeeksLater = new Date(); twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
@@ -471,7 +507,7 @@
     }
 
     listEl.innerHTML = events.slice(0, 10).map(function(ev) {
-      var d = new Date(ev.date);
+      var d = parseLocalDate(ev.date);
       var isToday = ev.date === todayStr;
       var isOverdue = ev.date < todayStr;
       var monthShort = d.toLocaleDateString('th-TH', { month: 'short' });
