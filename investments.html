@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>การลงทุน</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="supabase-config.js"></script>
+<style>
+/* ============ INVESTMENT STYLES ============ */
+.inv-hero {
+  background: linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#1e40af 100%);
+  border-radius:20px; padding:28px; color:#fff; margin-bottom:20px; position:relative; overflow:hidden;
+}
+.inv-hero::before{content:'';position:absolute;right:-80px;top:-80px;width:240px;height:240px;border-radius:50%;background:rgba(99,102,241,.15);}
+.inv-hero::after{content:'';position:absolute;left:-40px;bottom:-80px;width:180px;height:180px;border-radius:50%;background:rgba(16,185,129,.1);}
+.inv-hero-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;position:relative;z-index:1;}
+.inv-balance-big{font-size:36px;font-weight:800;margin:6px 0;letter-spacing:.5px;}
+.inv-sub{font-size:12px;opacity:.8;}
+
+.inv-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px;position:relative;z-index:1;}
+.inv-kpi-box{background:rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;backdrop-filter:blur(4px);}
+.inv-kpi-box .lbl{font-size:11px;opacity:.8;margin-bottom:4px;}
+.inv-kpi-box .val{font-size:18px;font-weight:700;}
+.inv-kpi-box .sub{font-size:11px;opacity:.7;margin-top:2px;}
+
+/* Investment type cards */
+.inv-type-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+.inv-type-tab{padding:7px 16px;border-radius:20px;border:1.5px solid var(--gray-200);background:var(--gray-50);cursor:pointer;font-size:12px;font-weight:600;color:var(--gray-600);transition:all .2s;white-space:nowrap;}
+.inv-type-tab.active{background:var(--primary);border-color:var(--primary);color:#fff;}
+
+/* Investment cards grid */
+.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px;}
+.inv-card{border-radius:16px;padding:20px;background:#fff;box-shadow:var(--shadow);border-left:5px solid #6366f1;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;}
+.inv-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.inv-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.inv-card-name{font-size:15px;font-weight:700;color:var(--gray-800);}
+.inv-card-type{font-size:11px;color:var(--gray-500);margin-top:2px;}
+.inv-card-icon{font-size:28px;}
+.inv-card-value{font-size:24px;font-weight:800;color:var(--gray-900);margin-bottom:4px;}
+.inv-card-gain{font-size:13px;font-weight:600;display:flex;align-items:center;gap:4px;}
+.inv-card-gain.positive{color:#10b981;}
+.inv-card-gain.negative{color:#ef4444;}
+.inv-card-bar{height:5px;background:var(--gray-100);border-radius:3px;overflow:hidden;margin:12px 0 10px;}
+.inv-card-bar-fill{height:100%;border-radius:3px;transition:width .5s;}
+.inv-card-footer{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--gray-500);}
+.inv-card-actions{display:flex;gap:6px;margin-top:12px;}
+.inv-card-actions button{flex:1;padding:7px;border-radius:8px;border:1px solid var(--gray-200);background:var(--gray-50);cursor:pointer;font-size:12px;font-family:inherit;font-weight:500;color:var(--gray-700);transition:all .2s;}
+.inv-card-actions button:hover{background:var(--primary);border-color:var(--primary);color:#fff;}
+
+/* Risk badge */
+.risk-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;}
+.risk-low{background:#d1fae5;color:#065f46;}
+.risk-medium{background:#fef3c7;color:#92400e;}
+.risk-high{background:#fee2e2;color:#991b1b;}
+.risk-very_high{background:#fce7f3;color:#9d174d;}
+
+/* Detail modal sections */
+.inv-detail-header{background:linear-gradient(135deg,#1e3a5f,#1e40af);border-radius:14px;padding:20px;color:#fff;margin-bottom:16px;}
+.inv-detail-value{font-size:28px;font-weight:800;}
+.inv-stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.inv-stat{background:var(--gray-50);border-radius:10px;padding:12px;text-align:center;}
+.inv-stat .sl{font-size:11px;color:var(--gray-500);margin-bottom:3px;}
+.inv-stat .sv{font-size:16px;font-weight:700;}
+
+/* Charts area */
+.inv-charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;}
+
+/* Dark mode */
+body.dark-mode{background:#0f172a;color:#e2e8f0;}
+body.dark-mode .card,body.dark-mode .top-header,body.dark-mode .modal{background:#1e293b;}
+body.dark-mode .sidebar{background:#0a0f1e;}
+body.dark-mode .inv-card{background:#1e293b;border-left-color:#6366f1;}
+body.dark-mode .inv-card-name{color:#e2e8f0;}
+body.dark-mode .inv-card-value{color:#f1f5f9;}
+body.dark-mode .inv-stat{background:#334155;}
+body.dark-mode .form-control{background:#334155;border-color:#475569;color:#e2e8f0;}
+body.dark-mode .inv-type-tab{background:#334155;border-color:#475569;color:#cbd5e1;}
+body.dark-mode .table td,body.dark-mode .table th{border-color:#334155;}
+
+@media(max-width:768px){
+  .inv-kpi-row{grid-template-columns:1fr 1fr;}
+  .inv-charts-grid{grid-template-columns:1fr;}
+}
+@media(max-width:480px){.inv-kpi-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><span class="logo">💼</span><div><div class="brand-name">ระบบบริหารการเงิน</div></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">หลัก</div>
+      <a href="command-center.html" class="nav-item"><span class="nav-icon">🧭</span><span>ศูนย์บัญชาการ</span></a>
+      <a href="index.html" class="nav-item"><span class="nav-icon">📊</span><span>แดชบอร์ด</span></a>
+      <a href="transactions.html" class="nav-item"><span class="nav-icon">💰</span><span>รายรับ-รายจ่าย</span></a>
+      <div class="nav-label">วิเคราะห์</div>
+      <a href="reports.html" class="nav-item"><span class="nav-icon">📈</span><span>รายงาน</span></a>
+      <a href="cashflow.html" class="nav-item"><span class="nav-icon">💧</span><span>กระแสเงินสด</span></a>
+      <a href="budget.html" class="nav-item"><span class="nav-icon">🎯</span><span>งบประมาณ</span></a>
+      <a href="savings.html" class="nav-item"><span class="nav-icon">🏦</span><span>ออมเงิน/ฝากประจำ</span></a>
+      <a href="investments.html" class="nav-item active"><span class="nav-icon">📊</span><span>การลงทุน</span></a>
+      <div class="nav-label">จัดการ</div>
+      <a href="debts.html" class="nav-item"><span class="nav-icon">🤝</span><span>หนี้/ลูกหนี้</span></a>
+      <a href="assets.html" class="nav-item"><span class="nav-icon">🏭</span><span>ทรัพย์สิน</span></a>
+      <div class="nav-label admin-only">ผู้ดูแล</div>
+      <a href="admin.html" class="nav-item admin-only"><span class="nav-icon">⚙️</span><span>ผู้ดูแลระบบ</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info"><div class="user-avatar" id="userAvatar">U</div><div><div class="user-name" id="userName">—</div><div class="user-role" id="userRole">—</div></div></div>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#94a3b8;border-color:#334155;" onclick="logout()">🚪 ออกจากระบบ</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <button class="menu-toggle" onclick="toggleSidebar()" style="display:none;">☰</button>
+      <h1 class="page-title">📊 การลงทุน</h1>
+      <div class="header-actions">
+        <button class="btn btn-outline btn-sm" onclick="exportExcel()">📊 Excel</button>
+        <button class="btn btn-outline btn-sm" onclick="openSimulator()">🧮 จำลองผลตอบแทน</button>
+        <button class="btn btn-primary btn-sm" onclick="openInvModal()">➕ เพิ่มการลงทุน</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- HERO DASHBOARD -->
+      <div class="inv-hero">
+        <div class="inv-hero-top">
+          <div>
+            <div class="inv-sub">มูลค่าพอร์ตลงทุนรวม</div>
+            <div class="inv-balance-big" id="heroTotalValue">₭0</div>
+            <div class="inv-sub" id="heroTotalGain">กำไร/ขาดทุน: ₭0</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="inv-sub">ROI รวม</div>
+            <div style="font-size:32px;font-weight:800;" id="heroROI">0%</div>
+            <div class="inv-sub" id="heroROISub">จากเงินลงทุนทั้งหมด</div>
+          </div>
+        </div>
+        <div class="inv-kpi-row">
+          <div class="inv-kpi-box"><div class="lbl">เงินลงทุนรวม</div><div class="val" id="kpiTotalPrincipal">₭0</div><div class="sub">ทุนทั้งหมดที่ลงทุน</div></div>
+          <div class="inv-kpi-box"><div class="lbl">กำไรวันนี้</div><div class="val" id="kpiTodayReturn">₭0</div><div class="sub">ผลตอบแทนวันนี้</div></div>
+          <div class="inv-kpi-box"><div class="lbl">กำไรเดือนนี้</div><div class="val" id="kpiMonthReturn">₭0</div><div class="sub">ผลตอบแทนเดือนนี้</div></div>
+          <div class="inv-kpi-box"><div class="lbl">โครงการทั้งหมด</div><div class="val" id="kpiCount">0</div><div class="sub" id="kpiCountSub">กำลังดำเนินการ 0</div></div>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW -->
+      <div class="inv-charts-grid">
+        <div class="card">
+          <div class="card-header"><span class="card-title">🥧 สัดส่วนพอร์ตตามประเภท</span></div>
+          <canvas id="portfolioChart" height="200"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">📈 ผลตอบแทนรายเดือน</span></div>
+          <canvas id="returnChart" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- TYPE FILTER TABS -->
+      <div class="inv-type-tabs">
+        <div class="inv-type-tab active" onclick="setTypeFilter('all')" id="tf_all">📋 ทั้งหมด</div>
+        <div class="inv-type-tab" onclick="setTypeFilter('business')" id="tf_business">🏢 ธุรกิจ</div>
+        <div class="inv-type-tab" onclick="setTypeFilter('stock')" id="tf_stock">📈 หุ้น</div>
+        <div class="inv-type-tab" onclick="setTypeFilter('fund')" id="tf_fund">💼 กองทุน</div>
+        <div class="inv-type-tab" onclick="setTypeFilter('crypto')" id="tf_crypto">₿ คริปโต</div>
+        <div class="inv-type-tab" onclick="setTypeFilter('property')" id="tf_property">🏠 อสังหาฯ</div>
+        <div class="inv-type-tab" onclick="setTypeFilter('gold')" id="tf_gold">🥇 ทองคำ</div>
+        <div class="inv-type-tab" onclick="setTypeFilter('bond')" id="tf_bond">📜 พันธบัตร</div>
+        <div class="inv-type-tab" onclick="setTypeFilter('other')" id="tf_other">💡 อื่นๆ</div>
+      </div>
+
+      <!-- STATUS FILTER + SORT -->
+      <div class="filter-bar" style="margin-bottom:16px;">
+        <div class="search-box" style="flex:1;max-width:280px;">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="form-control" id="invSearch" placeholder="ค้นหาโครงการ..." oninput="filterInvestments()">
+        </div>
+        <select class="form-control" id="invStatus" style="max-width:160px;" onchange="filterInvestments()">
+          <option value="">ทุกสถานะ</option>
+          <option value="active">กำลังดำเนินการ</option>
+          <option value="closed">ปิดแล้ว</option>
+          <option value="suspended">ระงับชั่วคราว</option>
+        </select>
+        <select class="form-control" id="invSort" style="max-width:180px;" onchange="filterInvestments()">
+          <option value="value_desc">มูลค่า: มากไปน้อย</option>
+          <option value="roi_desc">ROI: มากไปน้อย</option>
+          <option value="gain_desc">กำไร: มากไปน้อย</option>
+          <option value="name_asc">ชื่อ: A-Z</option>
+          <option value="date_desc">วันที่: ใหม่สุด</option>
+        </select>
+      </div>
+
+      <!-- INVESTMENT CARDS -->
+      <div class="inv-grid" id="invGrid">
+        <div style="grid-column:1/-1;text-align:center;padding:60px;color:#94a3b8;">กำลังโหลด...</div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ============ ADD/EDIT INVESTMENT MODAL ============ -->
+<div class="modal-overlay" id="invModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" id="invModalTitle">➕ เพิ่มการลงทุนใหม่</h3>
+      <button class="modal-close" onclick="closeModal('invModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="invEditId">
+
+      <!-- Type selector -->
+      <div class="form-group">
+        <label class="form-label">ประเภทการลงทุน <span class="required">*</span></label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="inv-type-tab active" onclick="setInvType('business')" id="it_business">🏢 ธุรกิจ</button>
+          <button class="inv-type-tab" onclick="setInvType('stock')" id="it_stock">📈 หุ้น</button>
+          <button class="inv-type-tab" onclick="setInvType('fund')" id="it_fund">💼 กองทุน</button>
+          <button class="inv-type-tab" onclick="setInvType('crypto')" id="it_crypto">₿ คริปโต</button>
+          <button class="inv-type-tab" onclick="setInvType('property')" id="it_property">🏠 อสังหาฯ</button>
+          <button class="inv-type-tab" onclick="setInvType('gold')" id="it_gold">🥇 ทองคำ</button>
+          <button class="inv-type-tab" onclick="setInvType('bond')" id="it_bond">📜 พันธบัตร</button>
+          <button class="inv-type-tab" onclick="setInvType('other')" id="it_other">💡 อื่นๆ</button>
+        </div>
+        <input type="hidden" id="fInvType" value="business">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">ชื่อโครงการ <span class="required">*</span></label>
+        <input type="text" class="form-control" id="fInvName" placeholder="เช่น หุ้น PTT, กองทุน TMBAM, Bitcoin">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">เงินลงทุนเริ่มต้น (₭) <span class="required">*</span></label>
+          <input type="number" class="form-control" id="fInvPrincipal" placeholder="0" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">มูลค่าปัจจุบัน (₭)</label>
+          <input type="number" class="form-control" id="fInvCurrentValue" placeholder="เท่ากับเงินลงทุนถ้าเพิ่งเริ่ม" min="0" step="0.01">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ผลตอบแทนที่คาดหวัง (%/ปี)</label>
+          <input type="number" class="form-control" id="fInvTargetReturn" placeholder="เช่น 15" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ระดับความเสี่ยง</label>
+          <select class="form-control" id="fInvRisk">
+            <option value="low">🟢 ต่ำ (Low)</option>
+            <option value="medium" selected>🟡 ปานกลาง (Medium)</option>
+            <option value="high">🔴 สูง (High)</option>
+            <option value="very_high">🔥 สูงมาก (Very High)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วันที่เริ่มลงทุน <span class="required">*</span></label>
+          <input type="date" class="form-control" id="fInvStartDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่สิ้นสุด (ถ้ามี)</label>
+          <input type="date" class="form-control" id="fInvEndDate">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">รายละเอียด</label>
+        <textarea class="form-control" id="fInvDesc" rows="2" placeholder="รายละเอียดเพิ่มเติม เช่น หมายเหตุ กลยุทธ์ การจัดสรร"></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ไอคอน</label>
+          <input type="text" class="form-control" id="fInvIcon" value="📈" maxlength="4">
+        </div>
+        <div class="form-group">
+          <label class="form-label">สี</label>
+          <input type="color" class="form-control" id="fInvColor" value="#6366f1" style="height:40px;padding:4px;">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('invModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveInvestment()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TRANSACTION MODAL (ฝาก/ถอน/บันทึกผลตอบแทน) ============ -->
+<div class="modal-overlay" id="txInvModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="txInvTitle">บันทึกรายการ</h3>
+      <button class="modal-close" onclick="closeModal('txInvModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="txInvId">
+
+      <!-- Transaction type selector -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+        <button class="inv-type-tab active" onclick="setTxType('deposit')" id="tt_deposit">💰 เพิ่มเงินลงทุน</button>
+        <button class="inv-type-tab" onclick="setTxType('return')" id="tt_return">📈 บันทึกผลตอบแทน</button>
+        <button class="inv-type-tab" onclick="setTxType('dividend')" id="tt_dividend">💵 เงินปันผล</button>
+        <button class="inv-type-tab" onclick="setTxType('withdrawal')" id="tt_withdrawal">💸 ถอนเงินลงทุน</button>
+        <button class="inv-type-tab" onclick="setTxType('fee')" id="tt_fee">📋 ค่าธรรมเนียม</button>
+      </div>
+      <input type="hidden" id="fTxInvType" value="deposit">
+
+      <div style="padding:12px;background:var(--gray-50);border-radius:8px;margin-bottom:16px;">
+        <div style="font-size:12px;color:var(--gray-500);">มูลค่าปัจจุบัน</div>
+        <div style="font-size:20px;font-weight:700;" id="txInvCurrentVal">₭0</div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">จำนวน (₭) <span class="required">*</span></label>
+          <input type="number" class="form-control" id="fTxInvAmount" placeholder="0" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่</label>
+          <input type="date" class="form-control" id="fTxInvDate">
+        </div>
+      </div>
+
+      <div id="txUnitSection" style="display:none;">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">ราคาต่อหน่วย</label>
+            <input type="number" class="form-control" id="fTxInvPrice" placeholder="0" step="0.000001">
+          </div>
+          <div class="form-group">
+            <label class="form-label">จำนวนหน่วย</label>
+            <input type="number" class="form-control" id="fTxInvUnits" placeholder="0" step="0.000001">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">อัปเดตมูลค่าพอร์ตเป็น (₭)</label>
+        <input type="number" class="form-control" id="fTxInvNewValue" placeholder="ไม่ต้องกรอกถ้าไม่ต้องการอัปเดต" min="0" step="0.01">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <input type="text" class="form-control" id="fTxInvNote" placeholder="ไม่บังคับ">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('txInvModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveTxInv()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DETAIL MODAL ============ -->
+<div class="modal-overlay" id="invDetailModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" id="invDetailTitle">รายละเอียดการลงทุน</h3>
+      <button class="modal-close" onclick="closeModal('invDetailModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="inv-detail-header">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div style="font-size:13px;opacity:.85;" id="detailTypeBadge">—</div>
+            <div class="inv-detail-value" id="detailCurrentVal">₭0</div>
+            <div style="font-size:12px;opacity:.8;" id="detailGainLabel">—</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:12px;opacity:.8;">ROI</div>
+            <div style="font-size:28px;font-weight:800;" id="detailROI">0%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="inv-stat-row">
+        <div class="inv-stat"><div class="sl">เงินลงทุน</div><div class="sv" id="detailPrincipal">₭0</div></div>
+        <div class="inv-stat"><div class="sl">กำไร/ขาดทุน</div><div class="sv" id="detailGain">₭0</div></div>
+        <div class="inv-stat"><div class="sl">ROI เทียบปี</div><div class="sv" id="detailAnnualROI">0%</div></div>
+      </div>
+
+      <div class="inv-stat-row">
+        <div class="inv-stat"><div class="sl">ระดับความเสี่ยง</div><div class="sv" id="detailRisk">—</div></div>
+        <div class="inv-stat"><div class="sl">วันที่เริ่ม</div><div class="sv" id="detailStartDate">—</div></div>
+        <div class="inv-stat"><div class="sl">อายุการลงทุน</div><div class="sv" id="detailAge">—</div></div>
+      </div>
+
+      <div id="detailDescSection" style="display:none;margin-bottom:16px;padding:12px;background:var(--gray-50);border-radius:8px;font-size:13px;color:var(--gray-700);"></div>
+
+      <!-- Action buttons -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <button class="btn btn-success" style="flex:1;min-width:120px;justify-content:center;" onclick="openTxFromDetail('deposit')">💰 เพิ่มเงินลงทุน</button>
+        <button class="btn btn-primary" style="flex:1;min-width:120px;justify-content:center;" onclick="openTxFromDetail('return')">📈 บันทึกผลตอบแทน</button>
+        <button class="btn btn-outline" style="flex:1;min-width:120px;justify-content:center;" onclick="openTxFromDetail('withdrawal')">💸 ถอนเงิน</button>
+        <button class="btn btn-outline" style="flex:1;min-width:120px;justify-content:center;" onclick="openValuationUpdate()">🔄 อัปเดตมูลค่า</button>
+      </div>
+
+      <!-- Search history -->
+      <div class="filter-bar" style="margin-bottom:10px;">
+        <input type="date" class="form-control" id="invHistFrom" style="max-width:150px;" onchange="loadInvHistory()">
+        <input type="date" class="form-control" id="invHistTo" style="max-width:150px;" onchange="loadInvHistory()">
+        <select class="form-control" id="invHistType" style="max-width:160px;" onchange="loadInvHistory()">
+          <option value="">ทุกประเภท</option>
+          <option value="deposit">เพิ่มเงินลงทุน</option>
+          <option value="return">ผลตอบแทน</option>
+          <option value="dividend">เงินปันผล</option>
+          <option value="withdrawal">ถอนเงิน</option>
+          <option value="fee">ค่าธรรมเนียม</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:8px;font-weight:600;font-size:13px;">📜 ประวัติรายการ</div>
+      <div class="table-wrapper" style="max-height:260px;overflow-y:auto;">
+        <table class="table">
+          <thead><tr><th>วันที่</th><th>ประเภท</th><th class="text-right">จำนวน</th><th class="text-right">มูลค่าหลัง</th><th>หมายเหตุ</th></tr></thead>
+          <tbody id="invHistoryBody"><tr><td colspan="5" style="text-align:center;padding:20px;color:#94a3b8;">กำลังโหลด...</td></tr></tbody>
+        </table>
+      </div>
+
+      <!-- Performance chart -->
+      <div style="margin-top:16px;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px;">📊 กราฟมูลค่าการลงทุน</div>
+        <canvas id="invDetailChart" height="120"></canvas>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('invDetailModal')">ปิด</button>
+      <button class="btn btn-outline" id="detailEditBtn" onclick="editFromDetail()">✏️ แก้ไข</button>
+      <button class="btn btn-danger" id="detailCloseBtn" onclick="closeInvestment()">📦 ปิดการลงทุน</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SIMULATOR MODAL ============ -->
+<div class="modal-overlay" id="simInvModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">🧮 จำลองผลตอบแทนการลงทุน</h3>
+      <button class="modal-close" onclick="closeModal('simInvModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">เงินลงทุนเริ่มต้น (₭)</label>
+          <input type="number" class="form-control" id="simInvPrincipal" placeholder="1000000" oninput="runInvSim()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ระยะเวลา (ปี)</label>
+          <input type="number" class="form-control" id="simInvYears" placeholder="5" oninput="runInvSim()">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ผลตอบแทนต่อปี (%)</label>
+          <input type="number" class="form-control" id="simInvRate" placeholder="15" step="0.1" oninput="runInvSim()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">เพิ่มเงินลงทุนทุกปี (₭)</label>
+          <input type="number" class="form-control" id="simInvAnnualAdd" placeholder="0" oninput="runInvSim()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ประเภทผลตอบแทน</label>
+        <select class="form-control" id="simInvMethod" onchange="runInvSim()">
+          <option value="compound">ทบต้น (Compound)</option>
+          <option value="simple">ไม่ทบต้น (Simple)</option>
+        </select>
+      </div>
+
+      <div id="simInvResult" style="display:none;background:linear-gradient(135deg,#1e3a5f,#1e40af);border-radius:12px;padding:18px;color:#fff;margin-top:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;margin-bottom:12px;">
+          <div><div style="font-size:11px;opacity:.8;">เงินต้นรวม</div><div style="font-size:16px;font-weight:700;" id="simInvOutPrincipal">₭0</div></div>
+          <div><div style="font-size:11px;opacity:.8;">กำไรสะสม</div><div style="font-size:16px;font-weight:700;color:#10b981;" id="simInvOutGain">₭0</div></div>
+          <div><div style="font-size:11px;opacity:.8;">มูลค่าสุดท้าย</div><div style="font-size:18px;font-weight:800;" id="simInvOutTotal">₭0</div></div>
+        </div>
+        <div style="text-align:center;font-size:12px;opacity:.8;" id="simInvOutROI"></div>
+      </div>
+
+      <canvas id="simInvChart" height="140" style="margin-top:16px;display:none;"></canvas>
+
+      <div id="simInvTable" style="margin-top:12px;display:none;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px;">ตารางผลตอบแทนรายปี</div>
+        <div class="table-wrapper" style="max-height:200px;overflow-y:auto;">
+          <table class="table" id="simInvYearTable">
+            <thead><tr><th>ปีที่</th><th class="text-right">เงินต้น</th><th class="text-right">ผลตอบแทน</th><th class="text-right">มูลค่ารวม</th></tr></thead>
+            <tbody id="simInvYearBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('simInvModal')">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<script src="investments-app.js"></script>
+</body>
+</html>
